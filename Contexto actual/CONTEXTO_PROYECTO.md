@@ -297,8 +297,15 @@ fue invitado y que `main` está protegida (pull request con 1 aprobación).
   `radar/catalogo.py` lo valida (reporta todos los errores juntos) y lo sincroniza con la base en una sola
   transacción: quitar un juego del archivo lo desactiva sin borrar su historial. Comando:
   `py -3.14 -m radar.herramientas.cargar_catalogo` (muestra cuánto falta para 500 juegos / 3 plataformas / 50 casos).
-- `tests/`: 49 pruebas con `unittest` (sin internet). Ejecutar: `py -3.14 -m unittest -v`.
-- Aún NO existe: pipeline, colas, los tres modos, etapa 0 (descubrimiento), parsers, emparejamiento, sitio.
+- `radar/pipeline/` (rama `feat/esqueleto-pipeline`): orquestador de las 6 etapas con colas acotadas y los
+  3 modos (`ejecutar_pipeline(definicion, modo, config.pipeline)`). Secuencial = bucles sin hilos (T_sec);
+  concurrente = hilos en Descubrir/Descargar; paralelo = además ProcessPoolExecutor (o hilos) en Emparejar.
+  Las etapas son funciones de una `DefinicionPipeline` (aún solo falsas, en `tests/pipeline_falso.py`).
+  Límites provisionales en `[pipeline]` de config.toml. Diseño y argumentos de corrección: `docs/pipeline.md`.
+- `tests/`: 59 pruebas con `unittest` (sin internet), incluida la de equivalencia de los 3 modos.
+  Ejecutar: `py -3.14 -m unittest -v`.
+- Aún NO existe: etapas reales (descubrimiento, descarga, parsers, emparejamiento, persistencia, sitio),
+  reintento final de la cola de fallidos, guardado de métricas por ejecución.
 
 ---
 

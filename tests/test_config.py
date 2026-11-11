@@ -24,6 +24,11 @@ class PruebasConfig(unittest.TestCase):
             "conexiones en cero": texto_original.replace(
                 "max_conexiones_por_dominio = 2", "max_conexiones_por_dominio = 0"
             ),
+            "ejecutor desconocido": texto_original.replace(
+                'ejecutor_emparejar = "procesos"', 'ejecutor_emparejar = "gpu"'
+            ),
+            "demasiados procesos": texto_original.replace("workers_emparejar = 4", "workers_emparejar = 64"),
+            "cola en cero": texto_original.replace("cola_tareas = 64", "cola_tareas = 0"),
         }
         for descripcion, texto in casos.items():
             with self.subTest(descripcion), tempfile.TemporaryDirectory() as carpeta:

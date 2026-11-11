@@ -9,12 +9,23 @@ from pathlib import Path
 from radar.config import (
     Config,
     ConfigEjecucion,
+    ConfigPipeline,
     ConfigRed,
     ConfigReplay,
     ConfigRutas,
     LimiteDominio,
 )
 from radar.red.modelos import ErrorTemporal, Respuesta, ahora_utc
+
+
+def config_pipeline_de_prueba(**cambios) -> ConfigPipeline:
+    """Límites pequeños para que las pruebas del pipeline sean rápidas; ``cambios`` reemplaza campos."""
+    valores = dict(
+        workers_descubrir=2, workers_descargar=4, workers_emparejar=2, ejecutor_emparejar="procesos",
+        cola_tareas=8, cola_descargas=8, cola_resultados=8, cola_persistir=4,
+    )
+    valores.update(cambios)
+    return ConfigPipeline(**valores)
 
 
 def config_de_prueba(
@@ -30,6 +41,7 @@ def config_de_prueba(
     """Configuración pequeña que guarda todo en ``directorio`` (una carpeta temporal)."""
     return Config(
         ejecucion=ConfigEjecucion(modo="secuencial", fuente=fuente),
+        pipeline=config_pipeline_de_prueba(),
         red=ConfigRed(
             user_agent="RadarPruebas/0.1",
             timeout_segundos=1.0,

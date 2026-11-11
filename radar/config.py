@@ -25,6 +25,11 @@ RUTA_CONFIG_POR_DEFECTO = RAIZ_PROYECTO / "config" / "config.toml"
 # Valores admitidos para los campos de tipo "elección".
 MODOS_VALIDOS = ("secuencial", "concurrente", "paralelo")
 FUENTES_VALIDAS = ("vivo", "replay")
+EJECUTORES_EMPAREJAR = ("procesos", "hilos")
+
+# En Windows, ProcessPoolExecutor no admite más de 61 procesos (límite del sistema operativo para
+# esperar objetos a la vez). Se valida aquí para dar un mensaje claro en vez de un error interno.
+MAX_PROCESOS_WINDOWS = 61
 
 
 class ErrorConfiguracion(ValueError):
@@ -81,6 +86,20 @@ class ConfigRutas:
 
 
 @dataclass(frozen=True)
+class ConfigPipeline:
+    """Límites de concurrencia por etapa (sección 7 del enunciado). Ver docs/pipeline.md."""
+
+    workers_descubrir: int
+    workers_descargar: int
+    workers_emparejar: int
+    ejecutor_emparejar: str   # "procesos" o "hilos"
+    cola_tareas: int
+    cola_descargas: int
+    cola_resultados: int
+    cola_persistir: int
+
+
+@dataclass(frozen=True)
 class ConfigEjecucion:
     """Qué modo del pipeline se ejecuta y de dónde salen los datos."""
 
@@ -93,6 +112,7 @@ class Config:
     """Configuración completa del proyecto."""
 
     ejecucion: ConfigEjecucion
+    pipeline: ConfigPipeline
     red: ConfigRed
     replay: ConfigReplay
     rutas: ConfigRutas
@@ -172,6 +192,7 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
     base_rutas = ruta.resolve().parent.parent
 
     ejecucion = datos.get("ejecucion", {})
+    pipeline = datos.get("pipeline", {})
     red = datos.get("red", {})
     replay = datos.get("replay", {})
     rutas = datos.get("rutas", {})
@@ -215,6 +236,32 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
     if not config_red.user_agent:
         raise ErrorConfiguracion("'red.user_agent' no puede estar vacío: debe nombrar el proyecto.")
 
+    def entero_pipeline(clave: str) -> int:
+        return _entero_positivo(_requerido(pipeline, "pipeline", clave), f"pipeline.{clave}")
+
+    config_pipeline = ConfigPipeline(
+        workers_descubrir=entero_pipeline("workers_descubrir"),
+        workers_descargar=entero_pipeline("workers_descargar"),
+        workers_emparejar=entero_pipeline("workers_emparejar"),
+        ejecutor_emparejar=_eleccion(
+            _requerido(pipeline, "pipeline", "ejecutor_emparejar"),
+            "pipeline.ejecutor_emparejar",
+            EJECUTORES_EMPAREJAR,
+        ),
+        cola_tareas=entero_pipeline("cola_tareas"),
+        cola_descargas=entero_pipeline("cola_descargas"),
+        cola_resultados=entero_pipeline("cola_resultados"),
+        cola_persistir=entero_pipeline("cola_persistir"),
+    )
+    if (
+        config_pipeline.ejecutor_emparejar == "procesos"
+        and config_pipeline.workers_emparejar > MAX_PROCESOS_WINDOWS
+    ):
+        raise ErrorConfiguracion(
+            f"'pipeline.workers_emparejar' no puede superar {MAX_PROCESOS_WINDOWS} con procesos "
+            "(límite de Windows para ProcessPoolExecutor)."
+        )
+
     config_replay = ConfigReplay(
         latencia_ms=_entero_positivo(
             _requerido(replay, "replay", "latencia_ms"), "replay.latencia_ms", permitir_cero=True
@@ -232,6 +279,7 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
                 _requerido(ejecucion, "ejecucion", "fuente"), "ejecucion.fuente", FUENTES_VALIDAS
             ),
         ),
+        pipeline=config_pipeline,
         red=config_red,
         replay=config_replay,
         rutas=ConfigRutas(

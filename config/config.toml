@@ -23,6 +23,26 @@ modo = "secuencial"
 #   "replay" -> se leen del almacén de capturas con latencia simulada (mediciones formales)
 fuente = "vivo"
 
+[pipeline]
+# Límites de concurrencia por etapa (sección 7 del enunciado). VALORES PROVISIONALES: los definitivos se
+# fijan y justifican en el ADR de límites de concurrencia. Diseño explicado en docs/pipeline.md.
+# Solo se usan en los modos "concurrente" y "paralelo"; el modo "secuencial" ignora esta sección.
+
+# Workers (hilos) de las etapas de E/S. Pueden ser más que los núcleos: pasan casi todo el tiempo esperando la red.
+workers_descubrir = 4
+workers_descargar = 16
+# Workers del emparejamiento (solo modo "paralelo"). Con "procesos" cada uno es un proceso aparte (esquiva el
+# GIL); con "hilos" comparten el GIL (sirve para la comparación de la pregunta 5 del informe).
+workers_emparejar = 4
+ejecutor_emparejar = "procesos"
+
+# Tamaño máximo de cada cola entre etapas. Si una cola se llena, la etapa que la alimenta espera
+# (contrapresión): así una etapa rápida no acumula memoria sin límite delante de una lenta.
+cola_tareas = 64       # Descubrir  -> Descargar
+cola_descargas = 64    # Descargar  -> Parsear
+cola_resultados = 64   # Parsear    -> Emparejar
+cola_persistir = 32    # Emparejar  -> Persistir
+
 [red]
 # Identifica al cliente ante los sitios (scraping responsable, sección 10).
 # Debe nombrar el proyecto. NO poner correos ni datos personales aquí.

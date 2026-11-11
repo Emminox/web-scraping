@@ -31,6 +31,7 @@ radar/              Código del proyecto
   red/              Capa de red: robots.txt, límites por dominio, reintentos, almacén de capturas, métricas
   bd/               Base de datos SQLite: esquema.sql y conexión (ADR-003; explicado en docs/esquema-bd.md)
   catalogo.py       Lee, valida y carga el catálogo de juegos en la base
+  pipeline/         Orquestador: 6 etapas con colas acotadas y los 3 modos (diseño en docs/pipeline.md)
   herramientas/     Comandos: explorar_fuente.py (spikes) y cargar_catalogo.py
 catalogo/           Catálogo de juegos en JSON: la fuente de verdad (formato en catalogo/README.md)
 tests/              Pruebas automáticas (no usan internet)
