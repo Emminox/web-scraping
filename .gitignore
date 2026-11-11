@@ -43,3 +43,7 @@ datos/capturas/
 # Sitio generado por el pipeline (se publica con GitHub Actions, no se versiona)
 /sitio/
 /sitio-replay/
+
+# Documentos oficiales del curso (enunciado y referencia del profesor): solo locales, no se publican en el
+# repositorio público. El resumen para el equipo está en "Contexto actual/CONTEXTO_PROYECTO.md".
+Requerimientos y guías/

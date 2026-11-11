@@ -6,7 +6,7 @@ pipeline de web scraping **secuencial vs. concurrente vs. paralelo**, con experi
 
 ## Antes de hacer cualquier cosa
 Lee **`Contexto actual/CONTEXTO_PROYECTO.md`**: es la fuente única de contexto (requisitos, rúbrica,
-hitos, reglas, estado actual y plan). El enunciado oficial está en `Requerimientos y guías/`.
+hitos, reglas, estado actual y plan). El enunciado oficial está en `Requerimientos y guías/` (solo local: no se sube al repositorio público; pídanlo al equipo).
 
 ## Reglas no negociables (detalle en la sección 6 del contexto)
 - **No producir predicciones de rendimiento del Hito 1**: deben hacerse sin IA.
