@@ -1,0 +1,54 @@
+# Publica el sitio SIN volver a descargar las tiendas: usa la base guardada en la Release "datos" (la que dejó
+# la última corrida de "Actualizar sitio") y solo regenera las páginas. Tarda 2–3 minutos.
+# Útil para publicar cambios de diseño del sitio, o la primera vez, sin esperar la corrida completa.
+# No reemplaza a "Actualizar sitio": no lee precios nuevos ni modifica la base.
+name: Publicar sitio (rápido)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read    # Para descargar la base de la Release "datos".
+  pages: write      # Para publicar en GitHub Pages.
+  id-token: write   # Requerido por actions/deploy-pages.
+
+# Una publicación a la vez (si se lanza dos veces seguidas, la segunda espera a la primera).
+concurrency:
+  group: publicar-rapido
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Descargar la base de la Release "datos"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p datos
+          gh release download datos --pattern radar.sqlite --dir datos
+
+      # Solo genera las páginas desde la base (y pide el tipo de cambio: una solicitud).
+      - name: Generar el sitio
+        run: python -m radar sitio
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sitio
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - id: despliegue
+        uses: actions/deploy-pages@v4
