@@ -114,7 +114,12 @@ class ConfigDescubrimiento:
     """Etapa 0: qué listados de Metacritic se recorren (ADR-004)."""
 
     plataformas: tuple[str, ...]      # Nombres de plataforma de Metacritic ('ps5', 'pc'...).
-    paginas_por_plataforma: int
+    paginas_por_plataforma: int       # Valor por defecto.
+    paginas_especificas: dict[str, int] = field(default_factory=dict)  # [descubrimiento.paginas]
+
+    def paginas_de(self, plataforma: str) -> int:
+        """Páginas a recorrer de ``plataforma``: su valor propio o el de por defecto."""
+        return self.paginas_especificas.get(plataforma, self.paginas_por_plataforma)
 
 
 @dataclass(frozen=True)
@@ -193,12 +198,17 @@ def _leer_descubrimiento(seccion: dict[str, Any]) -> ConfigDescubrimiento:
         raise ErrorConfiguracion("'descubrimiento.plataformas' debe ser una lista con al menos una plataforma.")
     for plataforma in plataformas:
         _eleccion(plataforma, "descubrimiento.plataformas", tuple(PLATAFORMAS_METACRITIC))
+    especificas = {}
+    for plataforma, paginas in seccion.get("paginas", {}).items():
+        _eleccion(plataforma, "descubrimiento.paginas", tuple(PLATAFORMAS_METACRITIC))
+        especificas[plataforma] = _entero_positivo(paginas, f"descubrimiento.paginas.{plataforma}")
     return ConfigDescubrimiento(
         plataformas=tuple(plataformas),
         paginas_por_plataforma=_entero_positivo(
             _requerido(seccion, "descubrimiento", "paginas_por_plataforma"),
             "descubrimiento.paginas_por_plataforma",
         ),
+        paginas_especificas=especificas,
     )
 
 

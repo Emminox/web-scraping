@@ -28,7 +28,8 @@ from radar.bd import abrir_bd
 from radar.catalogo import ErrorCatalogo, leer_catalogo
 from radar.config import Config
 from radar.emparejamiento.emparejar import emparejar_juego
-from radar.fuentes import bestbuy, gog, metacritic, nintendo, steam
+from radar.fuentes import bestbuy, cheapshark, gog, metacritic, nintendo, steam
+from radar.fuentes.cheapshark import CHEAPSHARK
 from radar.fuentes.modelos import BESTBUY, GOG, NINTENDO, STEAM, Candidato
 from radar.persistencia import Persistidor
 from radar.pipeline import DefinicionPipeline, Descarga, Juego, ResultadoEjecucion, TareaDescarga, ejecutar_pipeline
@@ -46,11 +47,13 @@ FUENTES = (
     ("nintendo", "Nintendo eShop", "tienda_plataforma", "www.nintendo.com", "html"),
     ("gog", "GOG", "tienda_plataforma", "catalog.gog.com", "api"),
     ("bestbuy", "Best Buy", "minorista", "www.bestbuy.com", "html"),
+    # Tiendas de PC que llegan por la API de CheapShark (ADR-011): una fila por tienda.
+    *((codigo, nombre, tipo, "www.cheapshark.com", "api") for codigo, nombre, tipo in cheapshark.TIENDAS.values()),
 )
 
-# Qué tiendas se consultan para cada plataforma.
+# Qué tiendas se consultan para cada plataforma (CHEAPSHARK es una consulta que trae varias tiendas de PC).
 FUENTES_POR_PLATAFORMA = {
-    "pc": (STEAM, GOG),
+    "pc": (STEAM, GOG, CHEAPSHARK),
     "switch": (NINTENDO, BESTBUY),
     "switch2": (NINTENDO, BESTBUY),
     "ps5": (BESTBUY,),
@@ -69,7 +72,7 @@ class OpcionesEjecucion:
     modo: str
     fuente_datos: str                 # 'vivo' o 'replay'.
     plataformas: tuple[str, ...]      # Plataformas de Metacritic a recorrer.
-    paginas_por_plataforma: int
+    paginas_por_plataforma: int | None = None  # Si se indica (--paginas), reemplaza la configuración de TODAS.
     por_pagina: int | None = None     # Para pruebas rápidas: solo los primeros N juegos de cada página.
 
 
@@ -140,9 +143,14 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
         # páginas de consola, sus tareas de Best Buy (el dominio más lento) llenarían la cola acotada de
         # tareas y los juegos de PC no entrarían al pipeline: Steam y GOG quedarían ociosos (bloqueo por
         # cabeza de cola, observado en la primera ejecución completa). El orden no cambia los resultados.
+        def paginas_de(plataforma: str) -> int:
+            return opciones.paginas_por_plataforma or config.descubrimiento.paginas_de(plataforma)
+
+        maximo = max(paginas_de(p) for p in opciones.plataformas)
         lista = [("metacritic", plataforma, numero)
-                 for numero in range(1, opciones.paginas_por_plataforma + 1)
-                 for plataforma in opciones.plataformas]
+                 for numero in range(1, maximo + 1)
+                 for plataforma in opciones.plataformas
+                 if numero <= paginas_de(plataforma)]
         return lista + [("catalogo", None, 0)]
 
     def descubrir_pagina(pagina: tuple) -> list[Juego]:
@@ -171,6 +179,8 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
                 resultado.append((fuente, steam.url_busqueda(juego.titulo)))
             elif fuente == GOG:
                 resultado.append((fuente, gog.url_busqueda(juego.titulo)))
+            elif fuente == CHEAPSHARK:
+                resultado.append((fuente, cheapshark.url_busqueda(juego.titulo)))
             elif fuente == BESTBUY:
                 resultado.append((fuente, bestbuy.url_busqueda(juego.titulo)))
             elif fuente == NINTENDO:
@@ -189,6 +199,8 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
             candidatos = steam.parsear_busqueda(respuesta.cuerpo)
         elif fuente == GOG:
             candidatos = gog.parsear_busqueda(respuesta.cuerpo)
+        elif fuente == CHEAPSHARK:
+            candidatos = cheapshark.parsear_busqueda(respuesta.cuerpo)
         elif fuente == BESTBUY:
             candidatos = bestbuy.parsear_busqueda(respuesta.cuerpo)
         elif fuente == NINTENDO:
@@ -215,7 +227,9 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
 def _registrar_inicio(conexion: sqlite3.Connection, config: Config, opciones: OpcionesEjecucion) -> int:
     configuracion = {
         "modo": opciones.modo, "fuente_datos": opciones.fuente_datos, "plataformas": opciones.plataformas,
-        "paginas_por_plataforma": opciones.paginas_por_plataforma, "por_pagina": opciones.por_pagina,
+        "paginas_por_plataforma": {p: opciones.paginas_por_plataforma or config.descubrimiento.paginas_de(p)
+                                   for p in opciones.plataformas},
+        "por_pagina": opciones.por_pagina,
         "pipeline": config.pipeline.__dict__, "replay": config.replay.__dict__,
     }
     with conexion:

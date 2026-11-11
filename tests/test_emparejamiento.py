@@ -71,12 +71,39 @@ class PruebasEmparejar(unittest.TestCase):
         [elegido] = resultado.emparejamientos
         self.assertEqual((elegido.candidato.titulo, elegido.estado), ("Hades", "aceptado"))
 
-    def test_edicion_especial_es_dudosa(self):
+    def test_edicion_con_contenido_se_acepta_como_juego_dlc(self):
+        # Caso real: muchas tiendas venden SOLO la edición GOTY/Complete. Se acepta y queda anotada.
         resultado = emparejar_juego(paquete("The Witcher 3: Wild Hunt", "pc",
                                             ("gog", [candidato("The Witcher 3: Wild Hunt - Game of the Year Edition", fuente="gog")])))
         [e] = resultado.emparejamientos
+        self.assertEqual(e.estado, "aceptado")
+        self.assertIn("juego + DLC", e.motivo)
+        self.assertEqual(e.candidato.tipo, "juego_dlc")
+
+    def test_una_descarga_con_varias_tiendas_da_un_emparejamiento_por_tienda(self):
+        # Una consulta a CheapShark trae ofertas de varias tiendas: se elige el mejor producto de CADA una.
+        resultado = emparejar_juego(paquete("Hades", "pc", ("cheapshark", [
+            candidato("Hades", fuente="humble"), candidato("Hades II", fuente="humble"),
+            candidato("Hades", fuente="epic"), candidato("Hades Soundtrack", fuente="fanatical"),
+        ])))
+        por_tienda = {e.candidato.fuente: (e.candidato.titulo, e.estado) for e in resultado.emparejamientos}
+        self.assertEqual(por_tienda["humble"], ("Hades", "aceptado"))
+        self.assertEqual(por_tienda["epic"], ("Hades", "aceptado"))
+        self.assertEqual(por_tienda["fanatical"][1], "dudoso")  # Solo vendía la banda sonora.
+
+    def test_remasterizacion_sigue_siendo_dudosa(self):
+        resultado = emparejar_juego(paquete("Deus Ex", "pc", ("steam", [candidato("Deus Ex Remastered")])))
+        [e] = resultado.emparejamientos
         self.assertEqual(e.estado, "dudoso")
-        self.assertIn("edición especial", e.motivo)
+        self.assertIn("edición distinta: remastered", e.motivo)
+
+    def test_si_existe_la_base_gana_a_la_edicion(self):
+        resultado = emparejar_juego(paquete("Batman: Arkham City", "pc", ("steam", [
+            candidato("Batman: Arkham City - Game of the Year Edition", url="https://steam.ejemplo/a-goty"),
+            candidato("Batman: Arkham City", url="https://steam.ejemplo/z-base"),
+        ])))
+        [e] = resultado.emparejamientos
+        self.assertEqual((e.candidato.titulo, e.estado, e.motivo), ("Batman: Arkham City", "aceptado", None))
 
     def test_dlc_y_paquetes_son_dudosos(self):
         resultado = emparejar_juego(paquete("Hades", "pc", ("gog", [candidato("Hades Soundtrack", fuente="gog")])))

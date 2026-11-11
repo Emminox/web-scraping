@@ -56,7 +56,8 @@ def main(argumentos: list[str] | None = None) -> int:
         modo=opciones.modo or config.ejecucion.modo,
         fuente_datos=opciones.fuente or config.ejecucion.fuente,
         plataformas=opciones.plataformas or config.descubrimiento.plataformas,
-        paginas_por_plataforma=opciones.paginas or config.descubrimiento.paginas_por_plataforma,
+        # None = usar las páginas de cada plataforma según config.toml ([descubrimiento.paginas]).
+        paginas_por_plataforma=opciones.paginas,
         por_pagina=opciones.por_pagina,
     ))
     resultado = corrida.resultado

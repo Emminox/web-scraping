@@ -85,6 +85,22 @@ class PruebasNintendo(unittest.TestCase):
         self.assertIsNone(indice.buscar(frozenset({"zelda"}), "switch"))
 
 
+class PruebasCheapShark(unittest.TestCase):
+    def test_ofertas_por_tienda_sin_steam_ni_gog(self):
+        from radar.fuentes import cheapshark
+        candidatos = cheapshark.parsear_busqueda(leer("www.cheapshark.com/deals-hades.json"))
+        self.assertGreater(len(candidatos), 0)
+        fuentes = {c.fuente for c in candidatos}
+        self.assertNotIn("steam", fuentes)  # Steam y GOG ya se consultan directamente.
+        self.assertNotIn("gog", fuentes)
+        self.assertTrue(fuentes <= {codigo for codigo, _, _ in cheapshark.TIENDAS.values()})
+        for c in candidatos:
+            self.assertTrue(c.url.startswith("https://www.cheapshark.com/redirect?dealID="))
+            self.assertEqual((c.plataforma, c.formato), ("pc", "digital"))
+        hades2 = next(c for c in candidatos if c.titulo == "Hades II")
+        self.assertEqual((hades2.fuente, hades2.precio_actual_centavos), ("epic", 2999))
+
+
 class PruebasBestBuy(unittest.TestCase):
     def test_busqueda(self):
         candidatos = bestbuy.parsear_busqueda(leer("www.bestbuy.com/busqueda-hades.html"))

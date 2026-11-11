@@ -562,9 +562,10 @@ async function paginaMetricas() {
     secciones.push(el("section", { class: "panel" }, el("h2", { text: `Errores por etapa (${m.errores.length})` }),
       tabla(["Etapa", "Juego", "Mensaje"], m.errores.map((e) => [e.etapa, e.clave, e.mensaje]))));
   }
-  secciones.push(el("section", { class: "panel" }, el("h2", { text: `Emparejamientos dudosos (${m.dudosos.length})` }),
-    m.dudosos.length ? tabla(["Juego", "Tienda", "Producto", "Similitud", "Motivo"],
-      m.dudosos.map((d) => [d.juego, d.tienda, enlaceExterno(d.url, d.producto), d.similitud.toFixed(2), d.motivo]), [3])
+  secciones.push(el("section", { class: "panel" }, el("h2", { text: `Emparejamientos dudosos y ediciones (${m.dudosos.length})` }),
+    el("p", { class: "nota", text: "Dudoso: no se publica su precio. Publicado (edición): la tienda vende una edición con contenido extra (GOTY, Complete…) y se muestra como Juego + DLC." }),
+    m.dudosos.length ? tabla(["Juego", "Tienda", "Producto", "Similitud", "Estado", "Motivo"],
+      m.dudosos.map((d) => [d.juego, d.tienda, enlaceExterno(d.url, d.producto), d.similitud.toFixed(2), d.estado, d.motivo]), [3])
       : el("p", { class: "nota", text: "Sin casos dudosos." })));
   secciones.push(el("section", { class: "panel" }, el("h2", { text: `Juegos sin emparejar en ninguna tienda (${m.sin_emparejar.length})` }),
     m.sin_emparejar.length ? el("p", { text: m.sin_emparejar.join(" · ") }) : el("p", { class: "nota", text: "Todos los juegos tienen al menos una tienda." })));

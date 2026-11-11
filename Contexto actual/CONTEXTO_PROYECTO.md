@@ -271,6 +271,7 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 | Límites de concurrencia (workers, colas, por dominio) | Propuesta (provisional hasta barridos) | ADR-008 |
 | Replay: adaptador dentro de ClienteHttp (almacén de capturas) | Aceptada | ADR-009 |
 | Hosting: GitHub Pages + Actions diario + base en la Release `datos` | Aceptada (falta activar Pages) | ADR-010 |
+| Cobertura: CheapShark (tiendas de PC por API) + descubrimiento PC 12 / Switch 8 / PS5 4 / Xbox 4 páginas; ediciones GOTY/Complete aceptadas como juego + DLC | Aceptada | ADR-011, ADR-006 |
 | Asignación de roles | Pendiente | `docs/acta.md` |
 
 **Repositorio:** https://github.com/Emminox/web-scraping · **Sitio:** https://emminox.github.io/web-scraping/

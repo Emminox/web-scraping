@@ -93,13 +93,23 @@ intervalo_minimo_segundos = 1.0
 max_conexiones = 1
 intervalo_minimo_segundos = 2.0
 
+[red.dominios."www.cheapshark.com"]
+max_conexiones = 1
+intervalo_minimo_segundos = 1.0
+
 [descubrimiento]
 # Etapa 0 (ADR-004): listados de Metacritic ordenados por Metascore, 50 juegos por página.
 # Plataformas con el nombre que usa Metacritic en sus URLs.
 plataformas = ["ps5", "xbox-series-x", "nintendo-switch", "pc"]
-# 4 plataformas x 4 páginas x 50 = 800 entradas (un juego multiplataforma cuenta una vez por plataforma);
-# alcanza para más de 500 juegos distintos.
+# Páginas por plataforma si no tiene un valor propio abajo.
 paginas_por_plataforma = 4
+
+# Valores propios (ADR-011): PC y Switch tienen 2 o más tiendas consultables, PS5 y Xbox solo Best Buy, así que
+# solo los juegos de PC y Switch pueden publicarse (el sitio exige precio en 2 tiendas). Se recorren más páginas
+# de esas plataformas: 12 x 50 + 8 x 50 + 2 x 4 x 50 = 1400 entradas.
+[descubrimiento.paginas]
+pc = 12
+nintendo-switch = 8
 
 [replay]
 # Latencia simulada por solicitud en modo replay (sección 11 del enunciado).

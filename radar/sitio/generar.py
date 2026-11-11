@@ -30,12 +30,17 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
+from radar.fuentes import cheapshark
 from radar.pipeline.modelos import ErrorEtapa
 from radar.red.modelos import ahora_utc
 
 ESTATICO = Path(__file__).with_name("estatico")
 MINIMO_TIENDAS = 2
-NOMBRES_TIENDA = {"steam": "Steam", "gog": "GOG", "nintendo": "Nintendo eShop", "bestbuy": "Best Buy"}
+NOMBRES_TIENDA = {
+    "steam": "Steam", "gog": "GOG", "nintendo": "Nintendo eShop", "bestbuy": "Best Buy",
+    # Tiendas de PC que llegan por CheapShark (ADR-011).
+    **{codigo: nombre for codigo, nombre, _ in cheapshark.TIENDAS.values()},
+}
 NOMBRES_FAMILIA = {"playstation": "PlayStation", "nintendo": "Nintendo", "xbox": "Xbox", "pc": "PC"}
 NOTA_DURACION = ("No disponible: los términos de uso de How Long To Beat prohíben extraer sus datos con "
                  "programas automáticos. Ver ADR-004 y ADR-007 (respaldo con IGDB pendiente de credenciales).")
@@ -403,13 +408,18 @@ def generar_metricas(conexion: sqlite3.Connection, destino: Path, mediciones: Pa
         fallidos = [{"url": f["url"], "mensaje": f["mensaje"], "resuelto": bool(f["resuelto_al_final"])}
                     for f in conexion.execute("SELECT * FROM fallo WHERE ejecucion_id = ? ORDER BY url", (ultima["id"],))]
 
+    # Casos para revisar: los dudosos (no publicados) y los aceptados con una edición distinta (publicados como
+    # "juego + DLC"). El enunciado pide que las ediciones especiales aparezcan marcadas en el panel.
     dudosos = [{"juego": f["titulo_canonico"], "tienda": NOMBRES_TIENDA.get(f["tienda"], f["tienda"]),
                 "producto": f["titulo_en_tienda"], "url": f["url"], "similitud": f["similitud"] or 0.0,
-                "motivo": f["motivo_duda"]}
+                "motivo": f["motivo_duda"],
+                "estado": "Publicado (edición)" if f["estado_emparejamiento"] == "aceptado" else "Dudoso (no publicado)"}
                for f in conexion.execute(
                    "SELECT j.titulo_canonico, f.codigo AS tienda, p.* FROM producto_tienda p "
                    "JOIN juego j ON j.id = p.juego_id JOIN fuente f ON f.id = p.fuente_id "
-                   "WHERE p.estado_emparejamiento = 'dudoso' AND j.activo = 1 ORDER BY j.titulo_canonico, f.codigo")]
+                   "WHERE j.activo = 1 AND (p.estado_emparejamiento = 'dudoso' OR "
+                   "(p.estado_emparejamiento = 'aceptado' AND p.motivo_duda IS NOT NULL)) "
+                   "ORDER BY p.estado_emparejamiento DESC, j.titulo_canonico, f.codigo")]
     sin_emparejar = [f["titulo_canonico"] for f in conexion.execute(
         "SELECT titulo_canonico FROM juego j WHERE activo = 1 AND NOT EXISTS ("
         "SELECT 1 FROM producto_tienda p WHERE p.juego_id = j.id AND p.estado_emparejamiento = 'aceptado') "

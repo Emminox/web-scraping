@@ -42,3 +42,4 @@ Hosting y tarea programada · Almacenamiento de capturas y BD.
 | [008](008-limites-de-concurrencia.md) | Límites de concurrencia por etapa y por dominio | Propuesta |
 | [009](009-modo-replay.md) | Modo replay: adaptador en el cliente HTTP | Aceptada |
 | [010](010-hosting-y-tarea-programada.md) | Hosting, tarea programada y almacenamiento de la base | Aceptada |
+| [011](011-cobertura-cheapshark-y-catalogo-pc-switch.md) | Más tiendas de PC (CheapShark) y catálogo enfocado en PC y Switch | Aceptada |

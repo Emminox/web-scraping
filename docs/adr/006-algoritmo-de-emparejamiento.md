@@ -26,5 +26,11 @@ Un producto reclamado por dos juegos queda para el de mejor estado, luego mayor 
 - Se pierde: el umbral es PROVISIONAL; falta el conjunto de validación de 60 pares revisados a mano.
 - Qué medir: precisión y exhaustividad por umbral (`/validar-emparejamiento`); tiempo de la etapa vs núcleos.
 
+## Cambio (2026-11-11)
+Muchas tiendas venden SOLO una edición con contenido extra ("Game of the Year", "Complete",
+"Definitive"…): eran dudosas y el juego no se publicaba. Ahora, si la única diferencia es una edición de ese tipo,
+se **acepta** como "juego + DLC" y la edición queda anotada y visible en el panel. Las remasterizaciones siguen
+siendo dudosas. El mejor candidato se elige **por tienda** (una consulta a CheapShark trae varias, ADR-011).
+
 ## Estado
 Aceptada (el umbral se revisará con el conjunto de validación).
