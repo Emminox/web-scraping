@@ -1,0 +1,37 @@
+# --- Secretos y configuración local ---
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# --- C# / .NET ---
+bin/
+obj/
+*.user
+.vs/
+
+# --- Editores y SO ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+~$*
+
+# --- Datos generados por el pipeline ---
+# Caché HTTP local (se regenera). Las capturas del modo replay y la base de datos
+# se versionan según el ADR de almacenamiento (Git LFS / Releases / BD en la nube).
+cache/
+*.log
