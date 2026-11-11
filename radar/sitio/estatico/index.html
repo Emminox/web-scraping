@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radar de Ofertas Multinúcleo</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body data-pagina="resultados">
+  <header class="barra"><div class="contenido">
+    <h1>🎮 Radar de Ofertas</h1>
+    <nav><a href="index.html">Ofertas</a><a href="metricas.html">Panel de métricas</a></nav>
+  </div></header>
+  <main>
+    <div class="diseno">
+      <aside class="filtros" aria-label="Filtros">
+        <label for="buscar">Buscar</label>
+        <input id="buscar" type="search" placeholder="Título…">
+        <label for="filtro-tipo">Tipo</label>
+        <select id="filtro-tipo"><option value="">Todos</option><option value="juego">Juego</option>
+          <option value="juego_dlc">Juego + DLC</option><option value="dlc">DLC</option><option value="otro">Otro</option></select>
+        <label for="filtro-plataforma">Plataforma</label>
+        <select id="filtro-plataforma"><option value="">Todas</option></select>
+        <label for="filtro-formato">Formato</label>
+        <select id="filtro-formato"><option value="">Todos</option><option value="digital">Digital</option><option value="fisico">Físico</option></select>
+        <label for="filtro-tienda">Tienda</label>
+        <select id="filtro-tienda"><option value="">Todas</option></select>
+        <label for="solo-ofertas"><input id="solo-ofertas" type="checkbox" style="width:auto"> Solo en oferta</label>
+        <label for="orden">Ordenar por</label>
+        <select id="orden">
+          <option value="descuento">Mayor % de descuento</option><option value="precio">Mejor precio</option>
+          <option value="nombre">Nombre</option><option value="calificacion">Calificación (Metascore)</option>
+        </select>
+      </aside>
+      <section>
+        <p class="resumen" id="resumen">Cargando…</p>
+        <div class="rejilla" id="rejilla"></div>
+        <div class="paginacion"><button id="anterior">← Anterior</button><span id="pagina"></span><button id="siguiente">Siguiente →</button></div>
+      </section>
+    </div>
+  </main>
+  <footer><span id="actualizado"></span> · Precios en USD de tiendas de EE. UU. · Proyecto académico IC-3101 (TEC).</footer>
+  <script src="app.js"></script>
+</body>
+</html>

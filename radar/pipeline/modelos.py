@@ -28,11 +28,24 @@ ETAPAS = ("descubrir", "descargar", "parsear", "emparejar", "persistir", "public
 
 @dataclass(frozen=True)
 class Juego:
-    """Un juego del catálogo, tal como entra al pipeline."""
+    """Un juego del catálogo EN UNA PLATAFORMA, tal como entra al pipeline.
 
-    clave: str                                  # Identificador estable (ver catalogo/README.md).
+    Un juego que sale en PC y Switch entra al pipeline dos veces ("elden-ring@pc" y
+    "elden-ring@switch"): cada entrada consulta las tiendas de su plataforma y empareja solo contra
+    productos de esa plataforma, lo que reduce errores. La etapa Persistir las junta bajo el mismo
+    juego (``clave_catalogo``).
+    """
+
+    clave: str                                  # Única en el pipeline: "<clave_catalogo>@<plataforma>".
     titulo: str
     titulos_alternativos: tuple[str, ...] = ()
+    clave_catalogo: str = ""                    # Identificador del juego en la base (ver catalogo/README.md).
+    plataforma: str | None = None               # Código de plataforma ('pc', 'ps5', 'switch'...).
+    fecha_lanzamiento: str | None = None        # 'AAAA-MM-DD'
+    imagen_url: str | None = None
+    metascore: int | None = None                # Calificación de Metacritic en esta plataforma.
+    origen: str = "manual"                      # 'descubrimiento' (etapa 0) o 'manual' (catalogo/*.json).
+    obtenida_en: str | None = None              # Cuándo se obtuvieron los datos de descubrimiento (ISO, UTC).
 
 
 @dataclass(frozen=True)

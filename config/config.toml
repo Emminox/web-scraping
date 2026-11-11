@@ -70,10 +70,36 @@ intervalo_minimo_segundos = 1.0
 # se vuelve a descargar. 0 = nunca reutilizar (siempre descargar).
 ttl_almacen_horas = 12.0
 
-# Reglas específicas por dominio (opcional). Ejemplo:
-# [red.dominios."store.steampowered.com"]
-# max_conexiones = 4
-# intervalo_minimo_segundos = 0.5
+# Reglas específicas por dominio para las fuentes elegidas (ADR-004). Valores conservadores: ninguna
+# fuente declara Crawl-delay; se usa como máximo 1 solicitud por segundo y 2 conexiones simultáneas.
+# Best Buy y Metacritic devuelven páginas de 0,6 MB: se les da un ritmo más lento.
+[red.dominios."www.metacritic.com"]
+max_conexiones = 1
+intervalo_minimo_segundos = 2.0
+
+[red.dominios."store.steampowered.com"]
+max_conexiones = 2
+intervalo_minimo_segundos = 1.0
+
+[red.dominios."catalog.gog.com"]
+max_conexiones = 2
+intervalo_minimo_segundos = 1.0
+
+[red.dominios."www.nintendo.com"]
+max_conexiones = 2
+intervalo_minimo_segundos = 1.0
+
+[red.dominios."www.bestbuy.com"]
+max_conexiones = 1
+intervalo_minimo_segundos = 2.0
+
+[descubrimiento]
+# Etapa 0 (ADR-004): listados de Metacritic ordenados por Metascore, 50 juegos por página.
+# Plataformas con el nombre que usa Metacritic en sus URLs.
+plataformas = ["ps5", "xbox-series-x", "nintendo-switch", "pc"]
+# 4 plataformas x 4 páginas x 50 = 800 entradas (un juego multiplataforma cuenta una vez por plataforma);
+# alcanza para más de 500 juegos distintos.
+paginas_por_plataforma = 4
 
 [replay]
 # Latencia simulada por solicitud en modo replay (sección 11 del enunciado).
@@ -92,6 +118,10 @@ fixtures = "fixtures"
 # Carpeta con los archivos JSON del catálogo de juegos (formato en catalogo/README.md).
 catalogo = "catalogo"
 # Base de datos SQLite (ADR-003). No se sube a Git: se conserva entre ejecuciones según el ADR de
-# almacenamiento (pendiente). Para mediciones en replay, usar un archivo de configuración aparte que
-# apunte a otra base, para no mezclar precios capturados con el historial real.
+# almacenamiento. En modo replay se usa automáticamente "<nombre>-replay.sqlite", para no mezclar
+# precios capturados con el historial real del sitio.
 base_datos = "datos/radar.sqlite"
+# Carpeta donde se genera el sitio estático (etapa 5). En replay: "<carpeta>-replay".
+sitio = "sitio"
+# Mediciones de los barridos (CSV) que el panel de métricas convierte en curvas de speedup.
+mediciones = "datos/mediciones"

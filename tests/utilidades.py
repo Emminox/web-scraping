@@ -8,6 +8,7 @@ from pathlib import Path
 
 from radar.config import (
     Config,
+    ConfigDescubrimiento,
     ConfigEjecucion,
     ConfigPipeline,
     ConfigRed,
@@ -57,7 +58,10 @@ def config_de_prueba(
             fixtures=directorio / "fixtures",
             catalogo=directorio / "catalogo",
             base_datos=directorio / "radar.sqlite",
+            sitio=directorio / "sitio",
+            mediciones=directorio / "mediciones",
         ),
+        descubrimiento=ConfigDescubrimiento(plataformas=("pc",), paginas_por_plataforma=1),
     )
 
 

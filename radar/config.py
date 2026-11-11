@@ -83,6 +83,8 @@ class ConfigRutas:
     fixtures: Path
     catalogo: Path
     base_datos: Path
+    sitio: Path
+    mediciones: Path
 
 
 @dataclass(frozen=True)
@@ -108,6 +110,14 @@ class ConfigEjecucion:
 
 
 @dataclass(frozen=True)
+class ConfigDescubrimiento:
+    """Etapa 0: qué listados de Metacritic se recorren (ADR-004)."""
+
+    plataformas: tuple[str, ...]      # Nombres de plataforma de Metacritic ('ps5', 'pc'...).
+    paginas_por_plataforma: int
+
+
+@dataclass(frozen=True)
 class Config:
     """Configuración completa del proyecto."""
 
@@ -116,6 +126,7 @@ class Config:
     red: ConfigRed
     replay: ConfigReplay
     rutas: ConfigRutas
+    descubrimiento: ConfigDescubrimiento
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +179,25 @@ def _leer_limite(datos: dict[str, Any], prefijo: str) -> LimiteDominio:
             _requerido(datos, prefijo, "intervalo_minimo_segundos"),
             f"{prefijo}.intervalo_minimo_segundos",
             permitir_cero=True,
+        ),
+    )
+
+
+def _leer_descubrimiento(seccion: dict[str, Any]) -> ConfigDescubrimiento:
+    """Valida la sección [descubrimiento]. Las plataformas deben ser de las que el proyecto conoce."""
+    # Import local: radar.fuentes importa este módulo indirectamente; así se evita un ciclo de imports.
+    from radar.fuentes.metacritic import PLATAFORMAS as PLATAFORMAS_METACRITIC
+
+    plataformas = _requerido(seccion, "descubrimiento", "plataformas")
+    if not isinstance(plataformas, list) or not plataformas:
+        raise ErrorConfiguracion("'descubrimiento.plataformas' debe ser una lista con al menos una plataforma.")
+    for plataforma in plataformas:
+        _eleccion(plataforma, "descubrimiento.plataformas", tuple(PLATAFORMAS_METACRITIC))
+    return ConfigDescubrimiento(
+        plataformas=tuple(plataformas),
+        paginas_por_plataforma=_entero_positivo(
+            _requerido(seccion, "descubrimiento", "paginas_por_plataforma"),
+            "descubrimiento.paginas_por_plataforma",
         ),
     )
 
@@ -287,5 +317,8 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
             fixtures=base_rutas / _requerido(rutas, "rutas", "fixtures"),
             catalogo=base_rutas / _requerido(rutas, "rutas", "catalogo"),
             base_datos=base_rutas / _requerido(rutas, "rutas", "base_datos"),
+            sitio=base_rutas / _requerido(rutas, "rutas", "sitio"),
+            mediciones=base_rutas / _requerido(rutas, "rutas", "mediciones"),
         ),
+        descubrimiento=_leer_descubrimiento(datos.get("descubrimiento", {})),
     )

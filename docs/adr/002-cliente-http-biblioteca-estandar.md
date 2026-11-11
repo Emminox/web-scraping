@@ -28,4 +28,4 @@ otro transporte sin tocar el resto del código.
   domina, reconsiderar con un ADR que reemplace a este.
 
 ## Estado
-Propuesta (confirmar en la reunión de arranque).
+Aceptada (confirmada por el equipo el 2026-11-11).

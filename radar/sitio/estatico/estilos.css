@@ -1,0 +1,60 @@
+/* Radar de Ofertas Multinúcleo · estilos del sitio público (sin dependencias externas). */
+:root {
+  --fondo: #f5f6f8; --tarjeta: #ffffff; --texto: #1d2330; --suave: #5b6475; --borde: #dde1e8;
+  --acento: #2457d6; --oferta: #c62828; --ok: #1b7f3b; --aviso: #b26a00; --chip: #eef1f6;
+  --sombra: 0 1px 3px rgba(20, 30, 50, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fondo: #12151c; --tarjeta: #1b2029; --texto: #e7eaf0; --suave: #9aa3b5; --borde: #2c3340;
+          --acento: #7aa2ff; --oferta: #ff6b6b; --ok: #5bd58a; --aviso: #ffb547; --chip: #252c38; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+       background: var(--fondo); color: var(--texto); }
+a { color: var(--acento); }
+header.barra { background: var(--tarjeta); border-bottom: 1px solid var(--borde); position: sticky; top: 0; z-index: 5; }
+header.barra .contenido { max-width: 1200px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+header.barra h1 { font-size: 18px; margin: 0; }
+header.barra nav a { margin-right: 14px; text-decoration: none; font-weight: 600; }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+footer { max-width: 1200px; margin: 0 auto; padding: 16px; color: var(--suave); font-size: 13px; }
+.diseno { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+@media (max-width: 760px) { .diseno { grid-template-columns: 1fr; } }
+.filtros { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; align-self: start; box-shadow: var(--sombra); }
+.filtros label { display: block; font-size: 13px; color: var(--suave); margin: 10px 0 4px; }
+.filtros select, .filtros input { width: 100%; padding: 7px; border-radius: 6px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); }
+.resumen { color: var(--suave); margin: 0 0 12px; }
+.rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.card { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--sombra); }
+.card img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--chip); }
+.card .cuerpo { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.card h3 { font-size: 15px; margin: 0; line-height: 1.3; }
+.card h3 a { color: var(--texto); text-decoration: none; }
+.precio { font-size: 18px; font-weight: 700; }
+.tachado { text-decoration: line-through; color: var(--suave); font-size: 13px; margin-left: 6px; }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chip { background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+.etiqueta { display: inline-block; border-radius: 4px; padding: 1px 6px; font-size: 12px; font-weight: 700; color: #fff; }
+.etiqueta.descuento { background: var(--oferta); }
+.etiqueta.minimo { background: var(--ok); }
+.etiqueta.viejo { background: var(--aviso); }
+.nota { color: var(--suave); font-size: 13px; }
+.paginacion { display: flex; gap: 8px; justify-content: center; margin: 20px 0; align-items: center; }
+button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--borde); background: var(--tarjeta); color: var(--texto); cursor: pointer; }
+button:disabled { opacity: .4; cursor: default; }
+.panel { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: var(--sombra); overflow-x: auto; }
+.panel h2 { font-size: 17px; margin: 0 0 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+th { color: var(--suave); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.detalle { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+@media (max-width: 760px) { .detalle { grid-template-columns: 1fr; } }
+.detalle img { width: 100%; border-radius: 10px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.kpi { background: var(--chip); border-radius: 8px; padding: 10px; }
+.kpi b { display: block; font-size: 20px; }
+svg.grafico { width: 100%; height: auto; }
+svg.grafico text { fill: var(--suave); font-size: 11px; }
+.leyenda span { margin-right: 12px; font-size: 13px; }
+.error { color: var(--oferta); }

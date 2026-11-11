@@ -1,7 +1,8 @@
 -- =============================================================================
 -- Esquema de la base de datos del Radar de Ofertas Multinúcleo (ADR-003: SQLite)
 -- =============================================================================
--- Versión del esquema: 1 (se guarda en PRAGMA user_version; ver radar/bd/conexion.py).
+-- Versión del esquema: 2 (se guarda en PRAGMA user_version; ver radar/bd/conexion.py).
+-- Cambios: v2 agrega ejecucion_etapa.ventana_segundos (migración automática desde v1).
 -- Explicación completa y diagrama: docs/esquema-bd.md
 --
 -- Convenciones:
@@ -162,8 +163,11 @@ CREATE TABLE IF NOT EXISTS ejecucion_etapa (
     ejecucion_id      INTEGER NOT NULL REFERENCES ejecucion (id) ON DELETE CASCADE,
     etapa             TEXT NOT NULL CHECK (etapa IN (
                           'descubrir', 'descargar', 'parsear', 'emparejar', 'persistir', 'publicar')),
+    -- Tiempo OCUPADO: suma del trabajo de todos los workers de la etapa.
     duracion_segundos REAL NOT NULL CHECK (duracion_segundos >= 0),
     elementos         INTEGER NOT NULL DEFAULT 0,   -- Cuántos elementos procesó la etapa.
+    -- VENTANA (v2): tiempo de reloj entre el primer y el último elemento de la etapa.
+    ventana_segundos  REAL NOT NULL DEFAULT 0 CHECK (ventana_segundos >= 0),
     PRIMARY KEY (ejecucion_id, etapa)
 ) STRICT;
 

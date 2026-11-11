@@ -299,13 +299,16 @@ def cargar_en_bd(conexion: sqlite3.Connection, entradas: list[EntradaJuego], aho
         raise ErrorCatalogo([f"'descubierto_por' usa fuentes que no existen en la tabla fuente: {desconocidas}"])
 
     claves_previas = {fila["clave"] for fila in conexion.execute("SELECT clave FROM juego")}
-    activas_previas = {fila["clave"] for fila in conexion.execute("SELECT clave FROM juego WHERE activo = 1")}
+    activas_previas = {
+        fila["clave"] for fila in conexion.execute("SELECT clave FROM juego WHERE activo = 1 AND origen = 'manual'")
+    }
 
     # "with conexion": abre una transacción y hace COMMIT al salir; si hay una excepción, ROLLBACK.
     with conexion:
-        # Paso 1: se marca todo como inactivo. Paso 2: cada juego del catálogo vuelve a activarse
-        # (si su entrada lo indica). Lo que no esté en los archivos queda inactivo.
-        conexion.execute("UPDATE juego SET activo = 0")
+        # Paso 1: se marcan como inactivos los juegos MANUALES. Paso 2: cada juego del catálogo vuelve a
+        # activarse (si su entrada lo indica). Los juegos que encontró la etapa 0 (origen
+        # 'descubrimiento') no se tocan: no viven en estos archivos sino en el listado público.
+        conexion.execute("UPDATE juego SET activo = 0 WHERE origen = 'manual'")
         for entrada in entradas:
             # INSERT ... ON CONFLICT ... DO UPDATE ("upsert"): inserta si la clave es nueva o actualiza
             # si ya existía, en una sola sentencia. agregado_en NO se actualiza: conserva la fecha original.

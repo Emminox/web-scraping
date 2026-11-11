@@ -39,3 +39,7 @@ datos/capturas/
 *.sqlite-wal
 *.sqlite-shm
 *.log
+
+# Sitio generado por el pipeline (se publica con GitHub Actions, no se versiona)
+/sitio/
+/sitio-replay/

@@ -34,4 +34,4 @@ y los procesos del emparejamiento nunca abren la base.
   cuello de botella, agrupar las inserciones en transacciones por lotes antes que agregar escritores.
 
 ## Estado
-Propuesta (confirmar en la reunión de equipo).
+Aceptada (confirmada por el equipo el 2026-11-11).

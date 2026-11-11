@@ -18,19 +18,31 @@ from pathlib import Path
 
 # Versión actual del esquema. Si se cambia esquema.sql de forma incompatible, se sube este número y
 # se escribe una migración; así una base vieja no se usa por error con código nuevo.
-VERSION_ESQUEMA = 1
+VERSION_ESQUEMA = 2
 
 RUTA_ESQUEMA = Path(__file__).with_name("esquema.sql")
+
+# Migraciones: versión de origen -> sentencias que la llevan a la versión siguiente. Permiten actualizar
+# una base existente sin perder su historial de precios.
+MIGRACIONES = {
+    1: ["ALTER TABLE ejecucion_etapa ADD COLUMN ventana_segundos REAL NOT NULL DEFAULT 0 "
+        "CHECK (ventana_segundos >= 0)"],
+}
 
 
 class ErrorEsquema(RuntimeError):
     """La base existe pero su versión de esquema no coincide con la que espera el código."""
 
 
-def abrir_bd(ruta: Path | str) -> sqlite3.Connection:
+def abrir_bd(ruta: Path | str, *, cerrable_desde_otro_hilo: bool = False) -> sqlite3.Connection:
     """Abre (o crea) la base en ``ruta``, la configura y aplica el esquema si es nueva.
 
     :param ruta: archivo de la base, o ``":memory:"`` para una base temporal en memoria (pruebas).
+    :param cerrable_desde_otro_hilo: lo usa SOLO la etapa Persistir. Su conexión se abre dentro del hilo
+        de persistencia, pero se cierra desde el hilo principal cuando el pipeline termina (ese hilo ya no
+        existe). Python impide eso por defecto; aquí se permite porque el diseño garantiza que nunca hay
+        dos hilos usándola a la vez: el cierre ocurre después de ``join()``. El propio ``Persistidor``
+        además verifica que siempre lo llame el mismo hilo.
     :raises ErrorEsquema: si la base fue creada con otra versión del esquema.
     """
     en_memoria = str(ruta) == ":memory:"
@@ -39,7 +51,7 @@ def abrir_bd(ruta: Path | str) -> sqlite3.Connection:
 
     # timeout=10: si la base está ocupada por otra conexión (p. ej. el generador del sitio leyendo
     # mientras Persistir escribe), se espera hasta 10 s en lugar de fallar al instante.
-    conexion = sqlite3.connect(ruta, timeout=10.0)
+    conexion = sqlite3.connect(ruta, timeout=10.0, check_same_thread=not cerrable_desde_otro_hilo)
     try:
         # Las filas se pueden leer por nombre de columna: fila["titulo_canonico"].
         conexion.row_factory = sqlite3.Row
@@ -67,6 +79,13 @@ def abrir_bd(ruta: Path | str) -> sqlite3.Connection:
 def _aplicar_esquema(conexion: sqlite3.Connection) -> None:
     """Crea las tablas si la base es nueva; verifica la versión si ya existía."""
     version = conexion.execute("PRAGMA user_version").fetchone()[0]
+    # Base de una versión anterior: se aplican las migraciones una por una, cada una en su transacción.
+    while 0 < version < VERSION_ESQUEMA and version in MIGRACIONES:
+        with conexion:
+            for sentencia in MIGRACIONES[version]:
+                conexion.execute(sentencia)
+            version += 1
+            conexion.execute(f"PRAGMA user_version = {version}")
     if version == VERSION_ESQUEMA:
         return  # La base ya tiene el esquema correcto.
     if version != 0:
