@@ -28,10 +28,15 @@ footer { max-width: 1200px; margin: 0 auto; padding: 16px; color: var(--suave); 
 .card { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--sombra); }
 /* Portadas: proporción 2:3 (la de una carátula real y de las portadas de Steam, 600x900). El contenedor fija
    la proporción y la imagen la llena con object-fit: cover, sin deformarse aunque la fuente sea algo distinta. */
-.portada { display: block; aspect-ratio: 2 / 3; background: var(--chip); overflow: hidden; }
-.portada img { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* Imágenes no verticales (cuadradas o apaisadas): completas, sin recorte, sobre fondo blanco como el de la foto. */
-.portada img.completa { object-fit: contain; background: #fff; }
+.portada { display: block; aspect-ratio: 2 / 3; background: var(--chip); overflow: hidden; position: relative; }
+.portada img { width: 100%; height: 100%; object-fit: cover; display: block; position: relative; }
+/* Imagen no vertical (cuadrada o apaisada) cuando no hay una portada vertical de calidad: se muestra completa, sin
+   recortar ni estirar, sobre una copia desenfocada y oscurecida de sí misma que llena todo el cuadro. */
+.portada.con-fondo::before {
+  content: ""; position: absolute; inset: -12%;
+  background: var(--fondo) center / cover no-repeat; filter: blur(18px) brightness(0.7);
+}
+.portada img.completa { object-fit: contain; }
 .card .cuerpo { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .card h3 { font-size: 15px; margin: 0; line-height: 1.3; }
 .card h3 a { color: var(--texto); text-decoration: none; }

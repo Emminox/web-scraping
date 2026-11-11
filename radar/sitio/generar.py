@@ -64,9 +64,21 @@ def portada_steam(url_producto: str | None) -> str | None:
             "/library_600x900_2x.jpg")
 
 
-def _sin_repetidos(urls: list[str | None]) -> list[str]:
-    """Quita vacíos y repetidos conservando el orden de preferencia."""
-    return list(dict.fromkeys(u for u in urls if u))
+def _candidatas(pares: list[tuple]) -> list[dict]:
+    """Lista de imágenes candidatas ``[{"url", "hd", "solo_vertical"}]`` sin vacías ni repetidas, en orden de preferencia.
+
+    Cada par es ``(url, hd)`` o ``(url, hd, solo_vertical)``. ``hd`` es una versión más grande de la misma imagen
+    que el navegador puede preferir en pantallas con escala. ``solo_vertical`` marca imágenes que solo sirven si son
+    verticales: las de Best Buy cuadradas son fotos del producto (a veces ampliadas), y su tamaño en píxeles no
+    refleja su calidad, así que no deben competir como respaldo con el arte cuadrado de Nintendo.
+    """
+    vistas, resultado = set(), []
+    for par in pares:
+        url, hd, solo_vertical = (*par, False)[:3]
+        if url and url not in vistas:
+            vistas.add(url)
+            resultado.append({"url": url, "hd": hd if hd and hd != url else None, "solo_vertical": solo_vertical})
+    return resultado
 
 
 def original_metacritic(url: str | None) -> str | None:
@@ -155,12 +167,14 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
     ):
         steam_por_juego[fila["juego_id"]] = fila["url"]
     caratula_por_juego: dict[int, str] = {}
+    cuadrada_nintendo_por_juego: dict[int, str] = {}
     for fila in conexion.execute(
-        "SELECT p.juego_id, p.imagen_url FROM producto_tienda p JOIN fuente f ON f.id = p.fuente_id "
-        "WHERE f.codigo = 'bestbuy' AND p.estado_emparejamiento = 'aceptado' AND p.imagen_url IS NOT NULL "
-        "ORDER BY p.juego_id, p.url"
+        "SELECT p.juego_id, f.codigo, p.imagen_url FROM producto_tienda p JOIN fuente f ON f.id = p.fuente_id "
+        "WHERE f.codigo IN ('bestbuy', 'nintendo') AND p.estado_emparejamiento = 'aceptado' "
+        "AND p.imagen_url IS NOT NULL ORDER BY p.juego_id, p.url"
     ):
-        caratula_por_juego.setdefault(fila["juego_id"], fila["imagen_url"])
+        destino_imagen = caratula_por_juego if fila["codigo"] == "bestbuy" else cuadrada_nintendo_por_juego
+        destino_imagen.setdefault(fila["juego_id"], fila["imagen_url"])
 
     tarjetas = []
     sin_precio_suficiente = 0
@@ -185,9 +199,11 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
         observaciones = [obs for serie in historial[juego["id"]].values() for obs in serie]
         minimo = min((c for _, c in observaciones), default=None)
         fechas_distintas = len({f[:10] for f, _ in observaciones})
-        # Imágenes en orden de preferencia: el navegador usa la primera y, si no carga, pasa a la siguiente.
+        # Imágenes candidatas en orden de preferencia. El navegador elige según la CALIDAD REAL de cada una (ver
+        # ``imagen`` en app.js): la primera vertical con resolución suficiente, o la de mayor resolución.
         steam_portada = portada_steam(steam_por_juego.get(juego["id"]))
         caratula = caratula_por_juego.get(juego["id"])
+        cuadrada_nintendo = cuadrada_nintendo_por_juego.get(juego["id"])
         metacritic_imagen = juego["imagen_url"]
         metascores = [c["puntaje"] for c in calificaciones[juego["id"]] if c["fuente"] == "Metacritic"]
         steam = [c["puntaje"] for c in calificaciones[juego["id"]] if c["fuente"] == "Reseñas de usuarios de Steam"]
@@ -196,12 +212,12 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
             "clave": juego["clave"],
             "titulo": juego["titulo_canonico"],
             "tipo": juego["tipo"],
-            # Steam 600x900 -> carátula de Best Buy 555x900 -> Metacritic 192x288 (la última, siempre disponible).
-            "imagenes": _sin_repetidos([steam_portada, caratula, metacritic_imagen]),
-            # Versión de alta resolución de la ÚLTIMA opción (Metacritic), solo para pantallas con escala (srcset
-            # "2x"). Una pantalla normal (1x) carga la de 192 px; así el original de ~3,7 MB solo lo descargan las
-            # pantallas que de verdad lo necesitan, y solo si las opciones anteriores fallaron.
-            "imagen_hd": original_metacritic(metacritic_imagen),
+            # Steam 600x900 -> carátula de Best Buy -> Metacritic 192x288 (con su original como "hd", que solo se
+            # descarga en pantallas con escala) -> arte cuadrado de Nintendo 1024x1024.
+            "imagenes": _candidatas([
+                (steam_portada, None), (caratula, None, True),
+                (metacritic_imagen, original_metacritic(metacritic_imagen)), (cuadrada_nintendo, None),
+            ]),
             "plataformas": [p["plataforma_codigo"] for p in plataformas_juego[juego["id"]]],
             "familias": sorted({plataformas[p["plataforma_codigo"]][1] for p in plataformas_juego[juego["id"]]}),
             "formatos": sorted({p["formato"] for p in precios}),
@@ -221,8 +237,11 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
             "clave": juego["clave"],
             "titulo": juego["titulo_canonico"],
             "tipo": juego["tipo"],
-            # En el detalle hay UNA sola imagen: como último recurso se puede usar el original de Metacritic.
-            "imagenes": _sin_repetidos([steam_portada, caratula, original_metacritic(metacritic_imagen)]),
+            # En el detalle hay UNA sola imagen: se puede pedir directamente el original de Metacritic.
+            "imagenes": _candidatas([
+                (steam_portada, None), (caratula, None, True),
+                (original_metacritic(metacritic_imagen), None), (cuadrada_nintendo, None),
+            ]),
             "precios": [{
                 "tienda": NOMBRES_TIENDA.get(p["tienda"], p["tienda"]),
                 "url": p["url"],

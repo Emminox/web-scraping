@@ -126,9 +126,10 @@ class PruebasSitio(BasePrueba):
         self.assertTrue(tarjeta["en_oferta"])
         self.assertFalse(tarjeta["minimo_historico"])  # Con una sola fecha de observación, no se marca.
         self.assertEqual((tarjeta["metascore"], tarjeta["steam"]), (90, 98))
-        # Imágenes en orden de preferencia: Steam (producto aceptado) primero, Metacritic al final.
-        self.assertTrue(tarjeta["imagenes"][0].endswith("/apps/1/library_600x900_2x.jpg"))
-        self.assertEqual(tarjeta["imagenes"][-1], "https://www.metacritic.com/a/img/x.jpg")
+        # Candidatas en orden de preferencia: Steam (producto aceptado) primero, luego Metacritic.
+        self.assertTrue(tarjeta["imagenes"][0]["url"].endswith("/apps/1/library_600x900_2x.jpg"))
+        self.assertEqual(tarjeta["imagenes"][-1],
+                         {"url": "https://www.metacritic.com/a/img/x.jpg", "hd": None, "solo_vertical": False})
         detalle = json.loads((destino / "datos" / "juegos" / "hades.json").read_text(encoding="utf-8"))
         self.assertEqual([p["precio"] for p in detalle["precios"]], [1249, 1999])  # De menor a mayor.
         for archivo in ("index.html", "juego.html", "metricas.html", "app.js", "estilos.css", "datos/metricas.json"):

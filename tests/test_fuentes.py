@@ -68,6 +68,8 @@ class PruebasNintendo(unittest.TestCase):
         self.assertEqual((candidato.titulo, candidato.plataforma, candidato.url), ("Hades", "switch", url))
         self.assertGreater(candidato.precio_actual_centavos, 0)
         self.assertGreaterEqual(candidato.precio_regular_centavos, candidato.precio_actual_centavos)
+        self.assertTrue(candidato.imagen_url.startswith("https://assets.nintendo.com/"))
+        self.assertTrue(candidato.imagen_url.endswith("_1024"))  # Arte cuadrado de 1024x1024.
 
     def test_indice_del_sitemap(self):
         sitemap = (

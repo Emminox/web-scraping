@@ -105,16 +105,23 @@ def parsear_producto(cuerpo: bytes, url: str) -> tuple[Candidato, ...]:
     ofertas = producto.get("offers") or {}
     actual = a_centavos(ofertas.get("price"))
     regular = actual
-    # El precio regular está en el estado inicial de la página, bajo la clave del SKU del producto.
+    # El precio regular y la imagen cuadrada están en el estado inicial de la página, bajo la clave del SKU.
     sku = producto.get("sku")
+    imagen = None
     siguiente = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', texto, re.S)
     if sku and siguiente:
         estado = json.loads(siguiente.group(1)).get("props", {}).get("pageProps", {}).get("initialApolloState", {})
-        precios = (estado.get(f'Product:{{"sku":"{sku}"}}') or {}).get('prices({"personalized":false})') or {}
+        datos_producto = estado.get(f'Product:{{"sku":"{sku}"}}') or {}
+        precios = datos_producto.get('prices({"personalized":false})') or {}
         if precios.get("finalPrice") is not None:
             actual = a_centavos(precios["finalPrice"])
         if precios.get("regularPrice") is not None:
             regular = a_centavos(precios["regularPrice"])
+        # Arte cuadrado oficial del eShop (1024x1024): no es vertical, pero sí de alta resolución. El sitio lo usa
+        # solo si no hay una portada vertical con resolución suficiente (ver radar/sitio/estatico/app.js).
+        cuadrada = (datos_producto.get('productImage({"shape":"square"})') or {}).get("url")
+        if isinstance(cuadrada, str) and cuadrada.startswith("https://"):
+            imagen = cuadrada
 
     edicion = producto.get("gameEdition")
     titulo = producto.get("name", "")
@@ -129,5 +136,6 @@ def parsear_producto(cuerpo: bytes, url: str) -> tuple[Candidato, ...]:
             formato="digital",
             precio_actual_centavos=actual,
             precio_regular_centavos=regular,
+            imagen_url=imagen,
         ),
     )

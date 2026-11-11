@@ -36,28 +36,96 @@ function urlSegura(url) {
 }
 
 /**
- * Imagen con cadena de respaldo: usa la primera URL de `candidatas`; si no carga (p. ej. un juego sin portada en
- * Steam), pasa a la siguiente. Termina siempre porque el índice solo avanza y la lista es finita.
- * `altaResolucion` es la versión grande de la ÚLTIMA candidata (Metacritic): se ofrece con srcset "2x", así las
- * pantallas normales (1x) cargan la pequeña y solo las pantallas con escala >= 125 % cargan la grande.
+ * Portada elegida por su CALIDAD REAL, no solo por la fuente.
+ *
+ * `candidatas` = [{url, hd}] en orden de preferencia (Steam, Best Buy, Metacritic, Nintendo). `hd` es una versión
+ * más grande de la misma imagen que se ofrece con srcset "2x": las pantallas normales (1x) no la descargan.
+ *
+ * Por qué no basta con el orden de las fuentes (medido el 2026-11-11):
+ * - Algunas imágenes de Best Buy son fotos CUADRADAS del producto (caja chica, márgenes blancos, a veces de baja
+ *   resolución): recortarlas corta la caja y encogerlas desperdicia el cuadro.
+ * - Metacritic no tiene un tamaño fijo: para algunos juegos su "original" mide 1335x2160 y para otros 125x187.
+ *
+ * Regla: se prueba cada candidata y se acepta la primera que sea VERTICAL y tenga resolución suficiente para el
+ * tamaño real de la tarjeta en esta pantalla (ancho CSS × devicePixelRatio). Si ninguna lo cumple, se muestra la
+ * de MAYOR resolución que cargó (ya está en la caché del navegador, no se descarga de nuevo); si no es vertical,
+ * se ve completa sobre un fondo desenfocado de la misma imagen, que llena el cuadro sin recortar ni estirar.
+ * Termina siempre: el índice solo avanza y la lista es finita.
  */
-function imagen(candidatas, atributos = {}, altaResolucion = null) {
-  const urls = (candidatas || []).map(urlSegura).filter(Boolean);
-  if (urls.length === 0) return null;
-  const hd = urlSegura(altaResolucion);
+// ancho / alto; una portada 2:3 vale 0,67. Hasta 0,82 se llena el cuadro recortando como mucho ~9 % por lado (mejor
+// que dejar bandas); más ancha que eso (cuadrada o apaisada) va completa sobre el fondo desenfocado.
+const PROPORCION_VERTICAL_MAXIMA = 0.82;
+// "Suficiente" = al menos tantos píxeles de ancho como ocupa la tarjeta en la pantalla: nada se agranda. (Con 80 %
+// se aceptaban imágenes de Metacritic de 192 px que, para juegos recientes, ya son ampliaciones de 125 px.)
+const FRACCION_RESOLUCION_SUFICIENTE = 1.0;
+
+function imagen(candidatas, atributos = {}) {
+  const lista = (candidatas || [])
+    .map((c) => (typeof c === "string" ? { url: c } : c))
+    .map((c) => ({ url: urlSegura(c.url), hd: urlSegura(c.hd), soloVertical: Boolean(c.solo_vertical) }))
+    .filter((c) => c.url);
+  if (lista.length === 0) return null;
   const img = el("img", { ...atributos, decoding: "async" });
-  let actual = 0;
-  const usar = (indice) => {
-    actual = indice;
-    if (hd && indice === urls.length - 1) img.srcset = `${urls[indice]} 1x, ${hd} 2x`;
-    else img.removeAttribute("srcset");
-    img.src = urls[indice];
+  let actual = 0;          // Índice de la candidata que se está probando.
+  let hdProbada = false;   // Si la versión "hd" de la candidata actual ya se probó.
+  let mejor = null;        // La de mayor resolución vista hasta ahora: {src, area, vertical}.
+  let decidido = false;    // true cuando ya se eligió la imagen definitiva.
+
+  const presentar = (vertical) => {
+    decidido = true;
+    img.classList.toggle("completa", !vertical);
+    const marco = img.parentElement;
+    if (!marco) return;
+    marco.classList.toggle("con-fondo", !vertical);
+    if (!vertical) marco.style.setProperty("--fondo", `url("${img.currentSrc}")`);
   };
-  img.addEventListener("error", () => { if (actual + 1 < urls.length) usar(actual + 1); });
-  // Si la imagen no es vertical (p. ej. cajas fotografiadas en cuadrado en Best Buy), se muestra completa en vez
-  // de recortarla para llenar la proporción 2:3 de la tarjeta.
-  img.addEventListener("load", () => img.classList.toggle("completa", img.naturalWidth / img.naturalHeight > 0.75));
-  usar(0);
+  const probar = (indice) => {
+    actual = indice;
+    hdProbada = false;
+    const c = lista[indice];
+    // Con srcset, una pantalla de escala >= 2 pide directamente la "hd" y se ahorra un paso.
+    if (c.hd) img.srcset = `${c.url} 1x, ${c.hd} 2x`;
+    else img.removeAttribute("srcset");
+    img.src = c.url;
+  };
+  // Si la candidata actual tiene versión "hd" que aún no se probó, la prueba (true); si no, devuelve false.
+  const probarHd = () => {
+    const c = lista[actual];
+    if (!c.hd || hdProbada || img.currentSrc === c.hd) return false;
+    hdProbada = true;
+    img.removeAttribute("srcset");
+    img.src = c.hd;
+    return true;
+  };
+  const siguiente = () => {
+    if (actual + 1 < lista.length) { probar(actual + 1); return; }
+    if (!mejor) return; // Ninguna cargó: queda el espacio vacío de la tarjeta.
+    if (img.currentSrc === mejor.src) { presentar(mejor.vertical); return; }
+    decidido = true; // El próximo "load" es la imagen elegida.
+    img.removeAttribute("srcset");
+    img.src = mejor.src;
+  };
+
+  img.addEventListener("error", () => {
+    if (decidido) return;
+    if (img.currentSrc === lista[actual].hd) hdProbada = true; // Falló la "hd": no se vuelve a intentar.
+    if (!probarHd()) siguiente();
+  });
+  img.addEventListener("load", () => {
+    const ancho = img.naturalWidth, alto = img.naturalHeight;
+    const vertical = ancho / alto <= PROPORCION_VERTICAL_MAXIMA;
+    if (decidido) { presentar(vertical); return; }
+    const necesario = FRACCION_RESOLUCION_SUFICIENTE * (img.parentElement?.clientWidth || 212) * devicePixelRatio;
+    if (vertical && ancho >= necesario) { presentar(true); return; }
+    // No sirve tal cual: se recuerda si es la de más resolución y se prueba su "hd" o la siguiente candidata.
+    // (Una "hd" más chica que la normal, como el original de 125 px de algunos juegos en Metacritic, simplemente
+    // no gana por área: no hace falta un caso especial.) Las marcadas "solo vertical" (fotos cuadradas de Best Buy,
+    // a veces ampliadas) no compiten como respaldo si no son verticales: sus píxeles no reflejan su calidad.
+    const descartable = lista[actual].soloVertical && !vertical;
+    if (!descartable && (!mejor || ancho * alto > mejor.area)) mejor = { src: img.currentSrc, area: ancho * alto, vertical };
+    if (!probarHd()) siguiente();
+  });
+  probar(0);
   return img;
 }
 
@@ -132,7 +200,7 @@ async function paginaResultados() {
   }
 
   function tarjeta(juego) {
-    const portada = imagen(juego.imagenes, { alt: "", loading: "lazy" }, juego.imagen_hd);
+    const portada = imagen(juego.imagenes, { alt: "", loading: "lazy" });
     const enlace = "juego.html?clave=" + encodeURIComponent(juego.clave);
     const lineaPrecio = el("div", {}, el("span", { class: "precio", text: precio(juego.precio) }));
     if (juego.regular && juego.regular > juego.precio) lineaPrecio.append(el("span", { class: "tachado", text: precio(juego.regular) }));
