@@ -1,0 +1,71 @@
+# =============================================================================
+# Configuración del Radar de Ofertas Multinúcleo
+# =============================================================================
+# Este archivo controla CÓMO se ejecuta el pipeline sin tocar el código.
+# Las rutas relativas se resuelven desde la raíz del repositorio (la carpeta
+# que contiene a config/).
+#
+# IMPORTANTE: los números de límites (conexiones, intervalos, reintentos) son
+# valores PROVISIONALES para poder hacer los spikes de la semana 1. Los
+# definitivos se fijan y justifican en el ADR de límites de concurrencia.
+# =============================================================================
+
+[ejecucion]
+# Modo del pipeline (sección 7 del enunciado):
+#   "secuencial"  -> todo en un hilo, un juego y una fuente a la vez (línea base T_sec)
+#   "concurrente" -> etapas de E/S con varios workers, el resto secuencial
+#   "paralelo"    -> además, el emparejamiento repartido entre núcleos
+# (El pipeline se implementa en la semana 2; hoy solo se valida el valor.)
+modo = "secuencial"
+
+# De dónde salen los datos:
+#   "vivo"   -> se descargan de los sitios reales (y se guardan en el almacén)
+#   "replay" -> se leen del almacén de capturas con latencia simulada (mediciones formales)
+fuente = "vivo"
+
+[red]
+# Identifica al cliente ante los sitios (scraping responsable, sección 10).
+# Debe nombrar el proyecto. NO poner correos ni datos personales aquí.
+user_agent = "RadarOfertasMultinucleo/0.1 (proyecto academico IC-3101 TEC Costa Rica)"
+
+# Segundos máximos que se espera en cada operación de red antes de abandonar el intento.
+timeout_segundos = 15.0
+
+# Reintentos ADEMÁS del primer intento (3 => hasta 4 solicitudes en total).
+max_reintentos = 3
+
+# Backoff exponencial con jitter: la espera antes del reintento n es un valor
+# aleatorio entre 0 y min(backoff_max, backoff_base * 2^n) segundos.
+backoff_base_segundos = 1.0
+backoff_max_segundos = 30.0
+
+# Límites por dominio que se aplican cuando el dominio no tiene una regla propia abajo.
+#   max_conexiones           -> solicitudes simultáneas permitidas al mismo dominio (semáforo)
+#   intervalo_minimo_segundos -> separación mínima entre el INICIO de dos solicitudes al mismo
+#                                dominio (cortesía; solo en modo vivo)
+max_conexiones_por_dominio = 2
+intervalo_minimo_segundos = 1.0
+
+# Horas que una respuesta guardada se considera "fresca" en modo vivo. Si es más vieja,
+# se vuelve a descargar. 0 = nunca reutilizar (siempre descargar).
+ttl_almacen_horas = 12.0
+
+# Reglas específicas por dominio (opcional). Ejemplo:
+# [red.dominios."store.steampowered.com"]
+# max_conexiones = 4
+# intervalo_minimo_segundos = 0.5
+
+[replay]
+# Latencia simulada por solicitud en modo replay (sección 11 del enunciado).
+# Variante fija: variacion_ms = 0. Variante aleatoria: variacion_ms > 0
+# (la latencia se elige uniformemente en [latencia_ms - variacion_ms, latencia_ms + variacion_ms]).
+latencia_ms = 200
+variacion_ms = 0
+# Semilla del generador aleatorio, para que una ejecución en replay sea repetible.
+semilla = 42
+
+[rutas]
+# Almacén de respuestas descargadas: funciona como caché en modo vivo y como fuente en modo replay.
+capturas = "datos/capturas"
+# Páginas de ejemplo guardadas durante los spikes; se usan como entradas de prueba de los parsers.
+fixtures = "fixtures"

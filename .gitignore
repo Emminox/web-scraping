@@ -34,4 +34,5 @@ Desktop.ini
 # Caché HTTP local (se regenera). Las capturas del modo replay y la base de datos
 # se versionan según el ADR de almacenamiento (Git LFS / Releases / BD en la nube).
 cache/
+datos/capturas/
 *.log

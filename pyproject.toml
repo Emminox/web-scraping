@@ -1,0 +1,11 @@
+# Metadatos del proyecto Python.
+# Por ahora no hay dependencias externas (ver ADR-002): todo usa la biblioteca estándar.
+# Cuando se agregue una dependencia (p. ej. un parser de HTML), se anota aquí y se justifica en un ADR.
+
+[project]
+name = "radar-ofertas"
+version = "0.1.0"
+description = "Radar de Ofertas Multinúcleo: web scraping secuencial y paralelo (IC-3101, TEC)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []

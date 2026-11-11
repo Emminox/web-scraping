@@ -1,0 +1,225 @@
+"""Cliente HTTP del proyecto: el único punto por el que se piden páginas.
+
+Combina todas las piezas de ``radar.red`` y aplica las reglas del enunciado en este orden:
+
+Modo vivo::
+
+    ¿hay copia fresca en el almacén? --sí--> devolverla (caché, sin tocar la red)
+              |no
+    ¿robots.txt lo permite? --no--> BloqueadoPorRobots (nunca se descarga)
+              |sí
+    repetir hasta max_reintentos:
+        pedir turno al limitador del dominio -> descargar con timeout
+        2xx           -> guardar en el almacén y devolver
+        429 / 5xx / sin respuesta -> esperar (backoff + jitter o Retry-After) y reintentar
+        otro 4xx      -> ErrorDefinitivo (reintentar no sirve)
+    si se agotan -> ReintentosAgotados (va a la cola de fallidos del pipeline)
+
+Modo replay::
+
+    leer del almacén -> si no está: SinCaptura
+    ocupar el turno del dominio y esperar la latencia simulada -> devolver la captura
+
+En ambos modos el resto del pipeline llama al mismo método ``obtener``: es lo que exige la sección 11
+("mismo código en replay y en vivo; solo cambia la fuente de los datos").
+"""
+
+from __future__ import annotations
+
+import random
+import time
+from collections.abc import Callable
+from datetime import timedelta
+from urllib.parse import urlsplit
+
+from radar.config import Config
+from radar.red.almacen import AlmacenCapturas
+from radar.red.limitador import LimitadorPorDominio
+from radar.red.metricas import MetricasRed
+from radar.red.modelos import (
+    BloqueadoPorRobots,
+    ErrorDefinitivo,
+    ErrorRed,
+    ErrorTemporal,
+    ReintentosAgotados,
+    Respuesta,
+    SinCaptura,
+    ahora_utc,
+)
+from radar.red.reintentos import calcular_espera, leer_retry_after
+from radar.red.robots import VerificadorRobots
+from radar.red.transporte import Transporte, TransporteUrllib
+
+
+def dominio_de(url: str) -> str:
+    """Nombre de dominio de una URL en minúsculas (p. ej. ``store.steampowered.com``)."""
+    return (urlsplit(url).hostname or "").lower()
+
+
+class ClienteHttp:
+    """Obtiene páginas respetando robots.txt, límites por dominio, timeouts y reintentos.
+
+    Una sola instancia se comparte entre todos los hilos del pipeline: así todos usan los mismos
+    semáforos por dominio y los mismos contadores. Todas sus partes internas son seguras para hilos.
+    """
+
+    def __init__(
+        self,
+        config: Config,
+        *,
+        transporte: Transporte | None = None,
+        dormir: Callable[[float], None] = time.sleep,
+        reloj: Callable[[], float] = time.monotonic,
+    ) -> None:
+        """
+        :param config: configuración cargada con ``radar.config.cargar_config``.
+        :param transporte: quién hace la solicitud real; las pruebas pasan uno falso.
+        :param dormir: función de espera; las pruebas pasan una que no espera de verdad.
+        :param reloj: reloj monotónico para el limitador (inyectable por las mismas razones).
+        """
+        self._config = config
+        self._modo_replay = config.ejecucion.fuente == "replay"
+        self._transporte = transporte if transporte is not None else TransporteUrllib()
+        self._dormir = dormir
+        self.almacen = AlmacenCapturas(config.rutas.capturas)
+        self.metricas = MetricasRed()
+        # En replay no hay sitio real que cuidar: se quita el intervalo de cortesía, pero el semáforo
+        # de conexiones por dominio se mantiene porque forma parte del diseño que se está midiendo.
+        self._limitador = LimitadorPorDominio(
+            config.red, aplicar_intervalo=not self._modo_replay, reloj=reloj, dormir=dormir
+        )
+        self._robots = VerificadorRobots(self._descargar_una_vez, config.red.user_agent)
+        # Generador aleatorio propio con semilla: hace repetibles el jitter y la latencia simulada.
+        self._aleatorio = random.Random(config.replay.semilla)
+        # Cabeceras que se envían en TODAS las solicitudes.
+        self._cabeceras = {
+            # Identificación honesta del cliente (sección 10).
+            "User-Agent": config.red.user_agent,
+            "Accept": "text/html,application/json;q=0.9,*/*;q=0.8",
+            # Se piden páginas en inglés de EE. UU. para que los precios vengan en USD en todas las
+            # tiendas y sean comparables entre sí. (El ADR de fuentes debe confirmarlo por sitio.)
+            "Accept-Language": "en-US,en;q=0.8",
+        }
+
+    # ------------------------------------------------------------------
+    # API pública
+    # ------------------------------------------------------------------
+
+    def obtener(self, url: str, *, usar_almacen: bool = True) -> Respuesta:
+        """Devuelve la respuesta de ``url`` según el modo configurado (vivo o replay).
+
+        :param usar_almacen: solo en modo vivo; ``False`` obliga a descargar aunque haya copia fresca
+            (lo usa la herramienta de exploración de fuentes).
+        :raises BloqueadoPorRobots, ErrorDefinitivo, ReintentosAgotados, SinCaptura:
+            ver ``radar.red.modelos``.
+        """
+        dominio = dominio_de(url)
+        if self._modo_replay:
+            return self._obtener_replay(url, dominio)
+
+        if usar_almacen:
+            guardada = self.almacen.leer(url)
+            if guardada is not None and self._es_fresca(guardada):
+                self.metricas.registrar(dominio, "desde_almacen")
+                return guardada
+
+        if not self._robots.permitido(url):
+            self.metricas.registrar(dominio, "bloqueadas_robots")
+            raise BloqueadoPorRobots(f"robots.txt no permite descargar {url}")
+
+        return self._descargar_con_reintentos(url, dominio)
+
+    def permitido_por_robots(self, url: str) -> bool:
+        """Pregunta a robots.txt sin descargar la página (lo usa la herramienta de exploración)."""
+        return self._robots.permitido(url)
+
+    def retraso_sugerido_por_robots(self, url: str) -> float | None:
+        """``Crawl-delay`` que declara el sitio para nuestro agente, si existe."""
+        return self._robots.retraso_sugerido(url)
+
+    # ------------------------------------------------------------------
+    # Modo vivo
+    # ------------------------------------------------------------------
+
+    def _es_fresca(self, respuesta: Respuesta) -> bool:
+        """True si la copia guardada es más reciente que el TTL configurado."""
+        ttl = timedelta(hours=self._config.red.ttl_almacen_horas)
+        return ttl > timedelta(0) and ahora_utc() - respuesta.obtenida_en < ttl
+
+    def _descargar_una_vez(self, url: str) -> Respuesta:
+        """Una sola solicitud, ocupando un turno del dominio. Sin reintentos ni almacén."""
+        with self._limitador.turno(dominio_de(url)):
+            return self._transporte.obtener(url, self._cabeceras, self._config.red.timeout_segundos)
+
+    def _descargar_con_reintentos(self, url: str, dominio: str) -> Respuesta:
+        """Descarga ``url`` reintentando los fallos temporales con backoff exponencial y jitter."""
+        red = self._config.red
+        ultimo_error: ErrorRed | None = None
+        total_intentos = red.max_reintentos + 1  # El primer intento más los reintentos.
+
+        for intento in range(total_intentos):
+            try:
+                respuesta = self._descargar_una_vez(url)
+                if respuesta.ok:
+                    self.almacen.guardar(respuesta)
+                    self.metricas.registrar(dominio, "exitosas")
+                    return respuesta
+                if respuesta.estado == 429 or respuesta.estado >= 500:
+                    # 429 = "demasiadas solicitudes"; 5xx = error del servidor. Ambos son pasajeros.
+                    raise ErrorTemporal(
+                        f"{url}: HTTP {respuesta.estado}",
+                        espera_sugerida=leer_retry_after(
+                            respuesta.cabeceras, red.backoff_max_segundos
+                        ),
+                    )
+                # Cualquier otro código (404, 403, 410...) no mejora reintentando.
+                self.metricas.registrar(dominio, "fallidas")
+                raise ErrorDefinitivo(f"{url}: HTTP {respuesta.estado}", estado=respuesta.estado)
+            except ErrorTemporal as error:
+                ultimo_error = error
+                if intento + 1 < total_intentos:
+                    self.metricas.registrar(dominio, "reintentos")
+                    espera = error.espera_sugerida
+                    if espera is None:
+                        espera = calcular_espera(
+                            intento, red.backoff_base_segundos, red.backoff_max_segundos,
+                            self._aleatorio,
+                        )
+                    # Se espera FUERA del turno del limitador (el ``with`` ya terminó), así este
+                    # hilo no ocupa una conexión del dominio mientras solo está esperando.
+                    self._dormir(espera)
+
+        self.metricas.registrar(dominio, "fallidas")
+        assert ultimo_error is not None  # Solo se llega aquí si todos los intentos fallaron.
+        raise ReintentosAgotados(url, total_intentos, ultimo_error)
+
+    # ------------------------------------------------------------------
+    # Modo replay
+    # ------------------------------------------------------------------
+
+    def _latencia_simulada(self) -> float:
+        """Segundos de latencia para una solicitud en replay: fija o con variación aleatoria."""
+        replay = self._config.replay
+        milisegundos = float(replay.latencia_ms)
+        if replay.variacion_ms > 0:
+            milisegundos += self._aleatorio.uniform(-replay.variacion_ms, replay.variacion_ms)
+        return max(0.0, milisegundos) / 1000.0
+
+    def _obtener_replay(self, url: str, dominio: str) -> Respuesta:
+        """Sirve la captura guardada simulando la espera de red."""
+        captura = self.almacen.leer(url)
+        if captura is None:
+            self.metricas.registrar(dominio, "fallidas")
+            raise SinCaptura(f"No hay captura guardada para {url}")
+        # La espera se hace DENTRO del turno: igual que en vivo, la "conexión" queda ocupada mientras
+        # se espera la respuesta. time.sleep libera el GIL, así que con varios hilos estas esperas
+        # se solapan: es la concurrencia de E/S que el experimento quiere medir.
+        with self._limitador.turno(dominio):
+            self._dormir(self._latencia_simulada())
+        self.metricas.registrar(dominio, "exitosas")
+        return captura
+
+
+def crear_cliente(config: Config) -> ClienteHttp:
+    """Atajo para crear el cliente con el transporte real."""
+    return ClienteHttp(config)

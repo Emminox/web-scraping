@@ -261,8 +261,9 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 
 | Decisión | Estado | ADR |
 |---|---|---|
-| Lenguaje (C# vs Python) | Pendiente — recomendación inicial: Python 3.12 (ver plan) | ADR-001 |
-| Base de datos | Pendiente | ADR-002 |
+| Lenguaje | **Aceptada: Python 3.12** | ADR-001 |
+| Cliente HTTP (urllib vs httpx) | Propuesta: urllib de la biblioteca estándar detrás de una interfaz `Transporte` | ADR-002 |
+| Base de datos | Pendiente | — |
 | Definición de "oferta" | Pendiente | — |
 | Fuentes por tipo de dato | Pendiente — requiere spikes | — |
 | Límites de concurrencia (workers, colas, por dominio) | Pendiente | — |
@@ -275,6 +276,18 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 **Repositorio Git:** inicializado localmente (rama `main`); falta crear el remoto en GitHub e invitar al equipo.
 **Estructura `docs/`:** creada con plantillas (acta, seguimiento, cambios de diseño, bitácora de IA, ADRs).
 **URL del sitio:** aún no existe. **Tablero:** aún no existe.
+
+**Código existente (rama `feat/base-proyecto`):**
+- `config/config.toml` + `radar/config.py`: configuración validada (modo, fuente vivo/replay, límites de red
+  PROVISIONALES, latencia simulada, rutas).
+- `radar/red/`: `ClienteHttp` único para todo el proyecto — robots.txt, User-Agent del proyecto, semáforo e
+  intervalo por dominio, timeout, reintentos con backoff exponencial + jitter (y Retry-After), almacén de
+  capturas en `datos/capturas/` (caché en vivo = fuente del replay), latencia simulada en replay, métricas
+  por dominio. Errores tipados: `ErrorTemporal`, `ErrorDefinitivo`, `BloqueadoPorRobots`, `SinCaptura`,
+  `ReintentosAgotados` (este último alimentará la cola de fallidos).
+- `radar/herramientas/explorar_fuente.py`: herramienta para los spikes de fuentes; guarda fixtures en `fixtures/`.
+- `tests/`: 26 pruebas con `unittest` (sin internet). Ejecutar: `python -m unittest -v`.
+- Aún NO existe: pipeline, colas, los tres modos, parsers, emparejamiento, BD, sitio.
 
 ---
 
