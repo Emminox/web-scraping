@@ -9,7 +9,11 @@
           --acento: #7aa2ff; --oferta: #ff6b6b; --ok: #5bd58a; --aviso: #ffb547; --chip: #252c38; }
 }
 * { box-sizing: border-box; }
-body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+/* Campos y botones no heredan la fuente por defecto: sin esto seguirían en la fuente del sistema. */
+button, input, select, textarea { font: inherit; }
+/* Consolas en todo el sitio. Es una fuente de Windows (no se puede servir como fuente web por su licencia):
+   en otros sistemas se usa la monoespaciada más parecida disponible. */
+body { margin: 0; font: 15px/1.5 Consolas, "Cascadia Mono", Menlo, Monaco, "Liberation Mono", "Courier New", monospace;
        background: var(--fondo); color: var(--texto); }
 a { color: var(--acento); }
 header.barra { background: var(--tarjeta); border-bottom: 1px solid var(--borde); position: sticky; top: 0; z-index: 5; }
@@ -18,7 +22,7 @@ header.barra h1 { font-size: 18px; margin: 0; }
 header.barra nav a { margin-right: 14px; text-decoration: none; font-weight: 600; }
 main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 footer { max-width: 1200px; margin: 0 auto; padding: 16px; color: var(--suave); font-size: 13px; }
-.diseno { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+.diseno { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }  /* 250 px: con Consolas (más ancha) "Mayor % de descuento" no se corta. */
 @media (max-width: 760px) { .diseno { grid-template-columns: 1fr; } }
 .filtros { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; align-self: start; box-shadow: var(--sombra); }
 .filtros label { display: block; font-size: 13px; color: var(--suave); margin: 10px 0 4px; }
