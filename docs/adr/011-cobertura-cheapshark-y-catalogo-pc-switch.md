@@ -34,5 +34,10 @@ Steam y GOG, que se consultan directamente). Descubrimiento: PC 12 páginas, Swi
   reintento final espera la pausa si no pasa de `red.pausa_maxima_segundos`. CheapShark baja a 1 solicitud cada 6 s.
 - Con el arreglo de "[Digital]" (ADR-006, cambio 2) Switch tiene dos tiendas reales: Switch sube de 8 a 12 páginas.
 
+## Cambio (2026-11-11, primera corrida en GitHub Actions)
+Sin caché, desde GitHub: Steam respondió 429 tras ~150 búsquedas (pasa a 1 conexión, 1 cada 1,6 s) y el
+robots.txt de CheapShark respondió 429 (un 429 en robots.txt ahora también pausa el dominio). Best Buy, Nintendo,
+GOG y Metacritic no tuvieron problemas.
+
 ## Estado
 Aceptada (decisión delegada por el equipo; revisar en la próxima reunión).

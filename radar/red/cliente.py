@@ -96,7 +96,7 @@ class ClienteHttp:
         self._limitador = LimitadorPorDominio(
             config.red, aplicar_intervalo=not self._modo_replay, reloj=reloj, dormir=dormir
         )
-        self._robots = VerificadorRobots(self._descargar_una_vez, config.red.user_agent)
+        self._robots = VerificadorRobots(self._descargar_robots, config.red.user_agent)
         # Un candado por URL (ver ``obtener``). Son pocos miles por ejecución: no hace falta liberarlos.
         self._candados_url: dict[str, threading.Lock] = {}
         self._lock_candados = threading.Lock()
@@ -221,6 +221,15 @@ class ClienteHttp:
         """Una sola solicitud, ocupando un turno del dominio. Sin reintentos ni almacén."""
         with self._limitador.turno(dominio_de(url)):
             return self._transporte.obtener(url, self._cabeceras, self._config.red.timeout_segundos)
+
+    def _descargar_robots(self, url: str) -> Respuesta:
+        """Descarga robots.txt. Un 429 ahí también pausa el dominio: antes solo se marcaba "no permitido" por 60 s y
+        se volvía a pedir robots.txt cada minuto a un sitio que ya había pedido parar (pasó con CheapShark)."""
+        respuesta = self._descargar_una_vez(url)
+        if respuesta.estado == 429:
+            pedida = leer_retry_after(respuesta.cabeceras, float("inf"))
+            self._pausar(dominio_de(url), pedida if pedida is not None else self._config.red.pausa_429_segundos)
+        return respuesta
 
     def _descargar_con_reintentos(self, url: str, dominio: str) -> Respuesta:
         """Descarga ``url`` reintentando los fallos temporales con backoff exponencial y jitter."""

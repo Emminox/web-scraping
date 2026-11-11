@@ -138,6 +138,17 @@ class PruebasCliente(unittest.TestCase):
         self.assertEqual(self.transporte.llamadas.count(URL), 1)  # Una sola solicitud, sin reintentos.
         self.assertEqual(round(cliente.pausas_pendientes()["tienda.ejemplo.com"]), 900)
 
+    def test_429_en_robots_txt_pausa_el_dominio(self):
+        otra = "https://tienda.ejemplo.com/juego/2"
+        self.transporte.programar(ROBOTS, respuesta(ROBOTS, 429))
+        cliente = self.crear_cliente()
+        with self.assertRaises(BloqueadoPorRobots):
+            cliente.obtener(URL)                       # Sin reglas: por prudencia, no se descarga.
+        with self.assertRaises(DominioEnPausa):
+            cliente.obtener(otra)                      # Y el dominio queda en pausa: ni robots.txt se vuelve a pedir.
+        self.assertEqual(self.transporte.llamadas, [ROBOTS])
+        self.assertEqual(round(cliente.pausas_pendientes()["tienda.ejemplo.com"]), 900)
+
     def test_503_sin_retry_after_usa_el_backoff_normal(self):
         self.transporte.programar(URL, respuesta(URL, 503), respuesta(URL, 200))
         cliente = self.crear_cliente()

@@ -85,8 +85,10 @@ max_conexiones = 1
 intervalo_minimo_segundos = 2.0
 
 [red.dominios."store.steampowered.com"]
-max_conexiones = 2
-intervalo_minimo_segundos = 1.0
+# 2026-11-11: desde GitHub Actions (sin caché) respondió 429 tras ~150 búsquedas a 2 conexiones / 1 s.
+# Su buscador tolera unas 200 solicitudes cada 5 minutos: 1 cada 1,6 s queda por debajo.
+max_conexiones = 1
+intervalo_minimo_segundos = 1.6
 
 [red.dominios."catalog.gog.com"]
 max_conexiones = 2
