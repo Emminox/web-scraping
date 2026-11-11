@@ -27,6 +27,7 @@ En ambos modos el resto del pipeline llama al mismo método ``obtener``: es lo q
 from __future__ import annotations
 
 import random
+import threading
 import time
 from collections.abc import Callable
 from datetime import timedelta
@@ -89,6 +90,9 @@ class ClienteHttp:
             config.red, aplicar_intervalo=not self._modo_replay, reloj=reloj, dormir=dormir
         )
         self._robots = VerificadorRobots(self._descargar_una_vez, config.red.user_agent)
+        # Un candado por URL (ver ``obtener``). Son pocos miles por ejecución: no hace falta liberarlos.
+        self._candados_url: dict[str, threading.Lock] = {}
+        self._lock_candados = threading.Lock()
         # Generador aleatorio propio con semilla: hace repetibles el jitter y la latencia simulada.
         self._aleatorio = random.Random(config.replay.semilla)
         # Cabeceras que se envían en TODAS las solicitudes.
@@ -116,17 +120,32 @@ class ClienteHttp:
         dominio = dominio_de(url)
         if self._modo_replay:
             return self._obtener_replay(url, dominio)
+        if not usar_almacen:
+            return self._descargar_permitida(url, dominio)
 
-        if usar_almacen:
+        # Una sola descarga por URL a la vez. Sin esto, dos tareas con la misma URL (p. ej. la búsqueda de Best Buy
+        # de un juego que sale en PS5, Xbox y Switch) veían la caché vacía al mismo tiempo y descargaban lo mismo
+        # dos o tres veces, justo en el sitio más lento. Con el candado de la URL, la segunda espera y luego
+        # encuentra la copia fresca que dejó la primera.
+        # Orden de candados: primero el de la URL y, adentro, el semáforo del dominio; nunca al revés -> no hay
+        # interbloqueo posible.
+        with self._candado_de_url(url):
             guardada = self.almacen.leer(url)
             if guardada is not None and self._es_fresca(guardada):
                 self.metricas.registrar(dominio, "desde_almacen")
                 return guardada
+            return self._descargar_permitida(url, dominio)
 
+    def _candado_de_url(self, url: str) -> threading.Lock:
+        """Candado de una URL (se crea la primera vez; mismo patrón "comprobar y crear" protegido que el limitador)."""
+        with self._lock_candados:
+            return self._candados_url.setdefault(url, threading.Lock())
+
+    def _descargar_permitida(self, url: str, dominio: str) -> Respuesta:
+        """Descarga ``url`` si robots.txt lo permite (con reintentos)."""
         if not self._robots.permitido(url):
             self.metricas.registrar(dominio, "bloqueadas_robots")
             raise BloqueadoPorRobots(f"robots.txt no permite descargar {url}")
-
         return self._descargar_con_reintentos(url, dominio)
 
     def permitido_por_robots(self, url: str) -> bool:

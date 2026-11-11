@@ -41,6 +41,19 @@ class PruebasNormalizar(unittest.TestCase):
         self.assertEqual(normalizar("Hades II").numeros, frozenset({"2"}))
         self.assertEqual(normalizar("Hades").numeros, frozenset())
 
+    def test_anio_entre_parentesis(self):
+        # Metacritic distingue juegos homónimos con el año; las tiendas no lo escriben.
+        self.assertEqual(normalizar("Unreal Tournament (1999)").texto, "unreal tournament")
+        self.assertEqual(normalizar("Unreal Tournament (1999)").numeros, frozenset())
+        self.assertEqual(normalizar("FIFA 2004").numeros, frozenset({"2004"}))  # Sin paréntesis es parte del nombre.
+        self.assertGreaterEqual(similitud(normalizar("Unreal Tournament (1999)"), normalizar("Unreal Tournament")),
+                                UMBRAL)
+
+    def test_indice_de_nintendo_usa_las_mismas_reglas(self):
+        from radar.ejecucion import palabras_para_indice
+        self.assertEqual(palabras_para_indice("Pokémon™ Legends: Arceus"), {"pokemon", "legends", "arceus"})
+        self.assertEqual(palabras_para_indice("Hades II (2025)"), {"hades", "ii"})  # Romanos intactos (como en la URL).
+
     def test_ediciones_y_dlc(self):
         goty = normalizar("The Witcher 3: Wild Hunt - Game of the Year Edition")
         self.assertEqual(goty.texto, "witcher 3 wild hunt")
@@ -161,6 +174,14 @@ class PruebasValidacion(unittest.TestCase):
         r = resultados[0.88]
         self.assertEqual((r["fp"], r["precision"]), (0, 1.0))  # "Hades II" no pasa el umbral.
         self.assertEqual(r["vp"] + r["fn"], 2)
+
+
+    def test_muestra_repartida_cubre_toda_la_lista(self):
+        from radar.herramientas.validar_emparejamiento import muestra_repartida
+        filas = list(range(100))
+        self.assertEqual(muestra_repartida(filas, 4), [0, 25, 50, 75])  # No solo las primeras 4.
+        self.assertEqual(muestra_repartida(filas[:3], 4), [0, 1, 2])
+        self.assertEqual(muestra_repartida(filas, 4), muestra_repartida(filas, 4))  # Determinista.
 
 
 if __name__ == "__main__":

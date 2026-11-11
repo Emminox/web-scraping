@@ -135,6 +135,18 @@ class PruebasSitio(BasePrueba):
         for archivo in ("index.html", "juego.html", "metricas.html", "app.js", "estilos.css", "datos/metricas.json"):
             self.assertTrue((destino / archivo).exists(), archivo)
 
+    def test_tipos_de_la_tarjeta_incluyen_ediciones_con_contenido(self):
+        # Una tienda solo vende la edición GOTY: el filtro "Juego + DLC" del sitio debe encontrarlo.
+        self.persistir(resultado(
+            juego("hades", "Hades"),
+            ("steam", [candidato("steam", "Hades", "https://store.steampowered.com/app/1/", 1249, 2499)]),
+            ("gog", [candidato("gog", "Hades Game of the Year Edition", "https://www.gog.com/hades", 1999, 2499)]),
+        ))
+        destino = self.carpeta / "sitio"
+        generar_sitio(self.bd, destino)
+        [tarjeta] = json.loads((destino / "datos" / "juegos.json").read_text(encoding="utf-8"))["juegos"]
+        self.assertEqual(tarjeta["tipos"], ["juego", "juego_dlc"])
+
 
 class PruebasHistorial(unittest.TestCase):
     def test_un_punto_por_dia_con_el_ultimo_precio(self):

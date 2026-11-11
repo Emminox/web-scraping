@@ -184,7 +184,7 @@ async function paginaResultados() {
     const soloOfertas = $("#solo-ofertas").checked;
     const lista = datos.juegos.filter((j) =>
       (!texto || j.titulo.toLowerCase().includes(texto)) &&
-      (!tipo || j.tipo === tipo) &&
+      (!tipo || (j.tipos || [j.tipo]).includes(tipo)) &&  // Tipos de los productos con precio (ver generar.py).
       (!familia || j.familias.includes(familia)) &&
       (!formato || j.formatos.includes(formato)) &&
       (!tienda || j.tiendas.includes(tienda)) &&
@@ -386,11 +386,15 @@ function graficoHistorial(series, { ancho = 720, alto = 300 } = {}) {
       svg("line", { x1: X(g.t), x2: X(g.t), y1: m.arr, y2: alto - m.aba, class: g.fuerte ? "guia fuerte" : "guia" }),
       svg("text", { x: X(g.t), y: alto - 10, "text-anchor": "middle", class: g.fuerte ? "eje fuerte" : "eje" }, g.texto));
   }
-  // Guías horizontales con el valor escrito dentro del área, arriba de la línea.
+  // Guías horizontales con el valor escrito dentro del área, arriba de la línea. Si todas las marcas caen en
+  // dólares enteros se escriben así ("$20"); si no (juegos baratos, pasos de 50 centavos), con centavos ("$2.50").
+  // Antes siempre se redondeaba al dólar y aparecían etiquetas repetidas ("$1", "$1", "$2"…).
+  const enDolaresEnteros = marcasY.every((v) => Math.abs(v % 100) < 1e-6);
+  const etiquetaY = (v) => (enDolaresEnteros ? "$" + Math.round(v / 100) : precio(v));
   for (const v of marcasY) {
     lienzo.append(svg("line", { x1: m.izq, x2: ancho - m.der, y1: Y(v), y2: Y(v), class: "guia" }));
     // El valor va arriba de su línea; el de la línea superior, debajo (si no, quedaría cortado por el borde).
-    if (v !== y0) lienzo.append(svg("text", { x: m.izq + 6, y: v === y1 ? Y(v) + 15 : Y(v) - 5, class: "eje" }, "$" + Math.round(v / 100)));
+    if (v !== y0) lienzo.append(svg("text", { x: m.izq + 6, y: v === y1 ? Y(v) + 15 : Y(v) - 5, class: "eje" }, etiquetaY(v)));
   }
 
   // Líneas escalonadas (finas, sin puntos), extendidas hasta el último día.

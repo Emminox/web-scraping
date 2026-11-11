@@ -35,17 +35,31 @@ COLUMNAS = ["juego", "producto", "tienda", "similitud", "estado_actual", "es_el_
 MINIMO_PARES = 60
 
 
+def muestra_repartida(filas: list, cantidad: int) -> list:
+    """Toma ``cantidad`` filas repartidas a lo largo de toda la lista (una cada ``len/cantidad``).
+
+    Antes se tomaban las primeras con ``ORDER BY j.clave LIMIT``: las claves empiezan por el slug, así que la
+    muestra eran casi solo juegos que empiezan por "a" o un número, casi siempre de una sola plataforma. Repartir
+    por toda la lista mantiene la muestra determinista (la misma base da el mismo CSV) y cubre todo el abecedario,
+    todas las plataformas y todas las tiendas.
+    """
+    if len(filas) <= cantidad:
+        return list(filas)
+    return [filas[i * len(filas) // cantidad] for i in range(cantidad)]
+
+
 def exportar(ruta_bd: Path, salida: Path, por_estado: int = 40) -> int:
     """Exporta hasta ``por_estado`` pares de cada estado (aceptado, dudoso, rechazado). Devuelve cuántos."""
     conexion = abrir_bd(ruta_bd)
     try:
         filas = []
         for estado in ("aceptado", "dudoso", "rechazado"):
-            filas += conexion.execute(
+            todas = conexion.execute(
                 "SELECT j.titulo_canonico, p.titulo_en_tienda, f.nombre, p.similitud, p.estado_emparejamiento "
                 "FROM producto_tienda p JOIN juego j ON j.id = p.juego_id JOIN fuente f ON f.id = p.fuente_id "
-                "WHERE p.estado_emparejamiento = ? ORDER BY j.clave, f.codigo LIMIT ?", (estado, por_estado)
+                "WHERE p.estado_emparejamiento = ? ORDER BY j.clave, f.codigo", (estado,)
             ).fetchall()
+            filas += muestra_repartida(todas, por_estado)
     finally:
         conexion.close()
     salida.parent.mkdir(parents=True, exist_ok=True)

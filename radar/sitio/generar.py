@@ -169,7 +169,7 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
     precios_por_juego: dict[int, list] = defaultdict(list)
     for fila in conexion.execute(
         """
-        SELECT up.*, p.juego_id, p.url, p.plataforma_codigo, p.formato, f.codigo AS tienda
+        SELECT up.*, p.juego_id, p.url, p.plataforma_codigo, p.formato, p.tipo AS tipo_producto, f.codigo AS tienda
         FROM v_ultimo_precio up
         JOIN producto_tienda p ON p.id = up.producto_id
         JOIN fuente f ON f.id = p.fuente_id
@@ -275,6 +275,10 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
             "clave": juego["clave"],
             "titulo": juego["titulo_canonico"],
             "tipo": juego["tipo"],
+            # Tipos de lo que realmente se vende (filtro "tipo" del sitio): el del juego del catálogo más el de cada
+            # producto con precio. Antes solo se usaba el del catálogo (siempre "juego"), así que el filtro
+            # "Juego + DLC" nunca encontraba nada aunque una tienda vendiera la edición GOTY.
+            "tipos": sorted({juego["tipo"]} | {p["tipo_producto"] or "juego" for p in precios}),
             # Steam 600x900 -> carátula de Best Buy -> Metacritic 192x288 (con su original como "hd", que solo se
             # descarga en pantallas con escala) -> arte cuadrado de Nintendo 1024x1024.
             "imagenes": _candidatas([

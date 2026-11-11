@@ -1,6 +1,7 @@
 """Pruebas del ClienteHttp: reintentos, robots.txt, caché y modo replay, sin usar internet."""
 
 import tempfile
+import threading
 import unittest
 from dataclasses import replace
 from datetime import timedelta
@@ -15,6 +16,7 @@ from radar.red import (
     SinCaptura,
 )
 from radar.red.almacen import AlmacenCapturas
+from radar.red.robots import VerificadorRobots
 from tests.utilidades import TransporteFalso, config_de_prueba, respuesta
 
 URL = "https://tienda.ejemplo.com/juego/1"
@@ -103,6 +105,31 @@ class PruebasCliente(unittest.TestCase):
         self.transporte.programar(URL, respuesta(URL, cuerpo=b"nueva"))
         self.assertEqual(self.crear_cliente().obtener(URL).cuerpo, b"nueva")
 
+    def test_misma_url_en_varios_hilos_se_descarga_una_sola_vez(self):
+        # El transporte se queda "descargando" hasta que todos los hilos ya pidieron la URL: sin el candado por URL,
+        # los 4 verían la caché vacía a la vez y harían 4 descargas.
+        todos_pidieron = threading.Event()
+        transporte = self.transporte
+        obtener_original = transporte.obtener
+
+        def obtener_lento(url, cabeceras, timeout):
+            if not url.endswith("/robots.txt"):
+                todos_pidieron.wait(timeout=0.5)
+            return obtener_original(url, cabeceras, timeout)
+
+        transporte.obtener = obtener_lento
+        transporte.programar(URL, respuesta(URL, cuerpo=b"una"))
+        cliente = self.crear_cliente(max_conexiones=4)
+        cuerpos = []
+        hilos = [threading.Thread(target=lambda: cuerpos.append(cliente.obtener(URL).cuerpo)) for _ in range(4)]
+        for hilo in hilos:
+            hilo.start()
+        todos_pidieron.set()
+        for hilo in hilos:
+            hilo.join()
+        self.assertEqual(cuerpos, [b"una"] * 4)
+        self.assertEqual(transporte.llamadas.count(URL), 1)  # Los otros 3 usaron la copia que dejó el primero.
+
     # --- Modo replay -----------------------------------------------------
 
     def test_replay_sirve_la_captura_con_latencia_simulada(self):
@@ -117,6 +144,42 @@ class PruebasCliente(unittest.TestCase):
         cliente = self.crear_cliente(fuente="replay")
         with self.assertRaises(SinCaptura):
             cliente.obtener(URL)
+
+
+class PruebasRobots(unittest.TestCase):
+    def test_fallo_temporal_bloquea_solo_un_rato(self):
+        ahora = [0.0]
+        intentos = []
+
+        def descargar(url):
+            intentos.append(url)
+            if len(intentos) == 1:
+                raise ErrorTemporal("timeout")
+            return respuesta(url, 200, b"User-agent: *\nDisallow: /privado/\n")
+
+        robots = VerificadorRobots(descargar, "RadarPruebas", reloj=lambda: ahora[0], espera_tras_fallo=60.0)
+        self.assertFalse(robots.permitido(URL))   # Timeout: por prudencia, bloqueado...
+        ahora[0] = 30.0
+        self.assertFalse(robots.permitido(URL))   # ...durante la ventana, sin volver a descargar...
+        self.assertEqual(len(intentos), 1)
+        ahora[0] = 61.0
+        self.assertTrue(robots.permitido(URL))    # ...y al vencer se vuelve a leer robots.txt.
+        self.assertFalse(robots.permitido("https://tienda.ejemplo.com/privado/x"))
+        self.assertEqual(len(intentos), 2)        # Las reglas leídas bien ya no vencen.
+
+    def test_error_5xx_tambien_es_temporal_y_403_es_definitivo(self):
+        ahora = [0.0]
+        estados = {"https://a.ejemplo/robots.txt": [503, 200], "https://b.ejemplo/robots.txt": [403, 200]}
+
+        def descargar(url):
+            return respuesta(url, estados[url].pop(0), b"")
+
+        robots = VerificadorRobots(descargar, "RadarPruebas", reloj=lambda: ahora[0], espera_tras_fallo=10.0)
+        self.assertFalse(robots.permitido("https://a.ejemplo/x"))
+        self.assertFalse(robots.permitido("https://b.ejemplo/x"))
+        ahora[0] = 11.0
+        self.assertTrue(robots.permitido("https://a.ejemplo/x"))
+        self.assertFalse(robots.permitido("https://b.ejemplo/x"))  # 403 no se reintenta.
 
 
 if __name__ == "__main__":

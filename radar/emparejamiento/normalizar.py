@@ -72,15 +72,35 @@ def _quitar_frases(texto: str, frases: list[str]) -> tuple[str, set[str]]:
     return texto, encontradas
 
 
-def normalizar(titulo: str) -> TituloNormalizado:
-    # 1) Quitar símbolos de marca y acentos: "Pokémon™" -> "pokemon". Los símbolos se quitan ANTES de
-    #    NFKD, porque NFKD convierte "™" en las letras "TM" ("hadestm"). NFKD separa la letra de su tilde.
+def quitar_anio_entre_parentesis(titulo: str) -> str:
+    """Quita un año entre paréntesis: "Unreal Tournament (1999)" -> "Unreal Tournament ".
+
+    Metacritic agrega el año para distinguir juegos con el mismo nombre, pero las tiendas no lo escriben. Si se
+    dejara, "1999" contaría como un número distinto y la penalización de números hundiría un par correcto. Solo se
+    quita entre paréntesis: "FIFA 2004" o "Tom Clancy's Rainbow Six 2049" siguen teniendo su número.
+    """
+    return re.sub(r"\((?:19|20)\d{2}\)", " ", titulo)
+
+
+def texto_basico(titulo: str) -> str:
+    """Minúsculas sin acentos, símbolos ni puntuación: "Pokémon™: Let's Go!" -> "pokemon lets go".
+
+    Es el paso común que usan ``normalizar`` y el índice de Nintendo (``radar.ejecucion.palabras_para_indice``);
+    así las dos partes no pueden quedar con reglas distintas.
+    """
+    # Los símbolos de marca se quitan ANTES de NFKD, porque NFKD convierte "™" en las letras "TM" ("hadestm").
+    # NFKD separa la letra de su tilde y luego se descarta la tilde.
     texto = re.sub(r"[™®©℠]", " ", titulo)
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(c for c in texto if not unicodedata.combining(c)).lower()
     texto = texto.replace("&", " and ").replace("'", "")  # "Assassin's" -> "assassins"
-    # 2) Toda la puntuación pasa a ser espacio: "Zelda: Breath of the Wild – Switch" -> palabras sueltas.
-    texto = re.sub(r"[^a-z0-9]+", " ", texto)
+    # Toda la puntuación pasa a ser espacio: "Zelda: Breath of the Wild – Switch" -> palabras sueltas.
+    return re.sub(r"[^a-z0-9]+", " ", texto).strip()
+
+
+def normalizar(titulo: str) -> TituloNormalizado:
+    # 1) y 2) Año entre paréntesis, acentos, símbolos y puntuación (ver las dos funciones de arriba).
+    texto = texto_basico(quitar_anio_entre_parentesis(titulo))
     # 3) Sufijos de plataforma y edición.
     texto, _ = _quitar_frases(texto, FRASES_PLATAFORMA)
     texto, ediciones = _quitar_frases(texto, FRASES_EDICION)

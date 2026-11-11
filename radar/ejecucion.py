@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-import unicodedata
 from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -28,6 +27,7 @@ from radar.bd import abrir_bd
 from radar.catalogo import ErrorCatalogo, leer_catalogo
 from radar.config import Config
 from radar.emparejamiento.emparejar import emparejar_juego
+from radar.emparejamiento.normalizar import quitar_anio_entre_parentesis, texto_basico
 from radar.fuentes import bestbuy, cheapshark, gog, metacritic, nintendo, steam
 from radar.fuentes.cheapshark import CHEAPSHARK
 from radar.fuentes.modelos import BESTBUY, GOG, NINTENDO, STEAM, Candidato
@@ -104,10 +104,11 @@ def registrar_fuentes(conexion: sqlite3.Connection) -> dict[str, int]:
 
 
 def palabras_para_indice(titulo: str) -> frozenset[str]:
-    """Palabras de un título con el mismo estilo que los identificadores de Nintendo ('hades-ii-switch')."""
-    texto = unicodedata.normalize("NFKD", re.sub(r"[™®©]", " ", titulo))
-    texto = "".join(c for c in texto if not unicodedata.combining(c)).lower().replace("&", " and ").replace("'", "")
-    return frozenset(p for p in re.split(r"[^a-z0-9]+", texto) if p)
+    """Palabras de un título con el mismo estilo que los identificadores de Nintendo ('hades-ii-switch').
+
+    Reutiliza el paso común del emparejamiento (``texto_basico``) para no mantener dos copias de las mismas reglas.
+    """
+    return frozenset(texto_basico(quitar_anio_entre_parentesis(titulo)).split())
 
 
 def cargar_indice_nintendo(cliente: ClienteHttp) -> nintendo.IndiceNintendo:
