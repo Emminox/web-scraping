@@ -25,5 +25,11 @@ capturas de replay NO se publican (pesan cientos de MB); cada integrante las gen
   (el sitio lo muestra con su fecha) y el fallo aparece en el panel de métricas.
 - Qué medir: solicitudes fallidas por sitio en las ejecuciones programadas frente a las locales.
 
+## Cambio (2026-11-11)
+Segundo workflow, "Publicar sitio (rápido)": regenera y publica el sitio desde la base de la Release "datos" sin
+volver a descargar las tiendas (~2 min). Se lanza solo al subir cambios en `radar/sitio/` y comparte el grupo de
+concurrencia con "Actualizar sitio": si la corrida completa está en curso, espera a que termine, así publica con
+la base del día y su diseño no queda pisado por la corrida completa (que usa el código de cuando empezó).
+
 ## Estado
 Aceptada. Requiere activar Settings → Pages → Source: GitHub Actions.

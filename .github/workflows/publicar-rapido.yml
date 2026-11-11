@@ -1,10 +1,14 @@
 # Publica el sitio SIN volver a descargar las tiendas: usa la base guardada en la Release "datos" (la que dejó
 # la última corrida de "Actualizar sitio") y solo regenera las páginas. Tarda 2–3 minutos.
-# Útil para publicar cambios de diseño del sitio, o la primera vez, sin esperar la corrida completa.
+# Se lanza SOLO cuando se sube a main un cambio en el código del sitio (radar/sitio/), o a mano desde Actions.
 # No reemplaza a "Actualizar sitio": no lee precios nuevos ni modifica la base.
 name: Publicar sitio (rápido)
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "radar/sitio/**"   # Páginas, estilos, app.js y generar.py: lo que cambia cuando se cambia el diseño.
   workflow_dispatch:
 
 permissions:
@@ -12,9 +16,12 @@ permissions:
   pages: write      # Para publicar en GitHub Pages.
   id-token: write   # Requerido por actions/deploy-pages.
 
-# Una publicación a la vez (si se lanza dos veces seguidas, la segunda espera a la primera).
+# MISMO grupo que "Actualizar sitio": si la corrida completa está en curso, esta publicación ESPERA en fila a que
+# termine. Así usa la base recién actualizada y su diseño nuevo no queda pisado por la corrida completa, que se
+# llevó el código de antes al empezar. (GitHub deja una sola ejecución esperando por grupo: si se suben dos cambios
+# seguidos mientras tanto, queda la más nueva, que ya incluye ambos.)
 concurrency:
-  group: publicar-rapido
+  group: actualizar-sitio
   cancel-in-progress: false
 
 jobs:
