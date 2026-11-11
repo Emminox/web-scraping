@@ -1,12 +1,33 @@
 /* Radar de Ofertas Multinúcleo · estilos del sitio público (sin dependencias externas). */
 :root {
+  /* Modo claro (predeterminado si el sistema no pide oscuro). */
   --fondo: #f5f6f8; --tarjeta: #ffffff; --texto: #1d2330; --suave: #5b6475; --borde: #dde1e8;
   --acento: #2457d6; --oferta: #c62828; --ok: #1b7f3b; --aviso: #b26a00; --chip: #eef1f6;
   --sombra: 0 1px 3px rgba(20, 30, 50, .08);
+  /* Gráfico del historial (diseño inspirado en DekuDeals) y su recuadro flotante. */
+  --graf-fondo: #eef1f5; --graf-area: #ffffff; --graf-linea: #1d2330; --graf-eje: #5b6475; --graf-eje-fuerte: #1d2330;
+  --recuadro-fondo: rgba(255, 255, 255, .97); --recuadro-borde: #dde1e8; --recuadro-sombra: 0 4px 12px rgba(20, 30, 50, .15);
+  color-scheme: light;
 }
+/* Modo oscuro: lo pide el sistema (y el usuario no eligió claro) o el usuario lo eligió con el botón del encabezado.
+   La elección se guarda en el navegador y se aplica en <head> antes de pintar (ver las páginas .html). */
 @media (prefers-color-scheme: dark) {
-  :root { --fondo: #12151c; --tarjeta: #1b2029; --texto: #e7eaf0; --suave: #9aa3b5; --borde: #2c3340;
-          --acento: #7aa2ff; --oferta: #ff6b6b; --ok: #5bd58a; --aviso: #ffb547; --chip: #252c38; }
+  :root:not([data-theme="light"]) {
+  --fondo: #12151c; --tarjeta: #1b2029; --texto: #e7eaf0; --suave: #9aa3b5; --borde: #2c3340;
+  --acento: #7aa2ff; --oferta: #ff6b6b; --ok: #5bd58a; --aviso: #ffb547; --chip: #252c38;
+  --sombra: 0 1px 3px rgba(0, 0, 0, .3);
+  --graf-fondo: #14171c; --graf-area: #191d24; --graf-linea: #ffffff; --graf-eje: #aab2c0; --graf-eje-fuerte: #e7eaf0;
+  --recuadro-fondo: rgba(20, 23, 28, .95); --recuadro-borde: #2c3340; --recuadro-sombra: 0 4px 12px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fondo: #12151c; --tarjeta: #1b2029; --texto: #e7eaf0; --suave: #9aa3b5; --borde: #2c3340;
+  --acento: #7aa2ff; --oferta: #ff6b6b; --ok: #5bd58a; --aviso: #ffb547; --chip: #252c38;
+  --sombra: 0 1px 3px rgba(0, 0, 0, .3);
+  --graf-fondo: #14171c; --graf-area: #191d24; --graf-linea: #ffffff; --graf-eje: #aab2c0; --graf-eje-fuerte: #e7eaf0;
+  --recuadro-fondo: rgba(20, 23, 28, .95); --recuadro-borde: #2c3340; --recuadro-sombra: 0 4px 12px rgba(0, 0, 0, .35);
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 /* Campos y botones no heredan la fuente por defecto: sin esto seguirían en la fuente del sistema. */
@@ -20,6 +41,7 @@ header.barra { background: var(--tarjeta); border-bottom: 1px solid var(--borde)
 header.barra .contenido { max-width: 1200px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 header.barra h1 { font-size: 18px; margin: 0; }
 header.barra nav a { margin-right: 14px; text-decoration: none; font-weight: 600; }
+header.barra .tema { margin-left: auto; }
 main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 footer { max-width: 1200px; margin: 0 auto; padding: 16px; color: var(--suave); font-size: 13px; }
 .diseno { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }  /* 250 px: con Consolas (más ancha) "Mayor % de descuento" no se corta. */
@@ -66,6 +88,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .detalle { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
 @media (max-width: 760px) { .detalle { grid-template-columns: 1fr; } }
 .detalle .portada { border-radius: 10px; align-self: start; }
+/* Las columnas de la cuadrícula no crecen más que la pantalla: una tabla ancha se desplaza dentro de su panel. */
+.detalle > *, .diseno > * { min-width: 0; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
 .kpi { background: var(--chip); border-radius: 8px; padding: 10px; }
 .kpi b { display: block; font-size: 20px; }
@@ -73,19 +97,19 @@ svg.grafico { width: 100%; height: auto; }
 svg.grafico text { fill: var(--suave); font-size: 11px; }
 .leyenda span { margin-right: 12px; font-size: 13px; }
 
-/* Historial de precios (diseño inspirado en DekuDeals): área oscura propia, guías tenues, ejes discretos. */
+/* Historial de precios (diseño inspirado en DekuDeals): área propia, guías tenues, ejes discretos (colores del tema). */
 .grafico-historial { position: relative; margin-top: 10px; }
-.grafico-historial svg { background: #14171c; border-radius: 6px; }
-.grafico-historial .area { fill: #191d24; }
-.grafico-historial .guia { stroke: #ffffff; stroke-opacity: .08; }
+.grafico-historial svg { background: var(--graf-fondo); border-radius: 6px; }
+.grafico-historial .area { fill: var(--graf-area); }
+.grafico-historial .guia { stroke: var(--graf-linea); stroke-opacity: .08; }
 .grafico-historial .guia.fuerte { stroke-opacity: .22; }
-.grafico-historial .cursor { stroke: #ffffff; stroke-opacity: .5; stroke-dasharray: 3 3; }
-.grafico-historial text.eje { fill: #aab2c0; font-size: 12px; }
-.grafico-historial text.eje.fuerte { fill: #e7eaf0; font-weight: 700; }
+.grafico-historial .cursor { stroke: var(--graf-linea); stroke-opacity: .5; stroke-dasharray: 3 3; }
+.grafico-historial text.eje { fill: var(--graf-eje); font-size: 12px; }
+.grafico-historial text.eje.fuerte { fill: var(--graf-eje-fuerte); font-weight: 700; }
 .grafico-historial .recuadro {
   position: absolute; top: 8px; z-index: 2; pointer-events: none; min-width: 180px;
-  background: rgba(20, 23, 28, .95); color: #e7eaf0; border: 1px solid #2c3340; border-radius: 6px;
-  padding: 6px 10px; font-size: 13px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+  background: var(--recuadro-fondo); color: var(--texto); border: 1px solid var(--recuadro-borde); border-radius: 6px;
+  padding: 6px 10px; font-size: 13px; line-height: 1.5; box-shadow: var(--recuadro-sombra);
 }
 .minimos { display: inline-block; text-align: center; margin: 4px 0 6px; }
 .minimos-titulo { font-weight: 700; border-bottom: 1px solid var(--borde); padding-bottom: 4px; margin-bottom: 6px; }

@@ -655,5 +655,32 @@ async function paginaMetricas() {
   contenido.replaceChildren(...secciones);
 }
 
+// ---------------------------------------------------------------------------------------------
+// Tema claro / oscuro
+// ---------------------------------------------------------------------------------------------
+
+// Sin elección se sigue al sistema. El botón fija "light" o "dark" en <html data-theme> y lo guarda en el
+// navegador; el <script> del <head> de cada página lo aplica antes de pintar en las siguientes visitas.
+function iniciarTema() {
+  const boton = $("#tema");
+  if (!boton) return;
+  const sistemaOscuro = matchMedia("(prefers-color-scheme: dark)");
+  const actual = () => document.documentElement.dataset.theme || (sistemaOscuro.matches ? "dark" : "light");
+  const rotular = () => {
+    const oscuro = actual() === "dark";
+    boton.textContent = oscuro ? "Modo claro" : "Modo oscuro";  // El botón dice a qué modo cambia.
+    boton.title = oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+  };
+  boton.addEventListener("click", () => {
+    const nuevo = actual() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = nuevo;
+    try { localStorage.setItem("radar.tema", nuevo); } catch { /* Navegación privada: vale solo esta página. */ }
+    rotular();
+  });
+  sistemaOscuro.addEventListener("change", rotular);
+  rotular();
+}
+iniciarTema();
+
 const paginas = { resultados: paginaResultados, detalle: paginaDetalle, metricas: paginaMetricas };
 paginas[document.body.dataset.pagina]?.();

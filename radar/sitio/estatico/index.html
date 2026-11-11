@@ -4,12 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Radar de Ofertas Multinúcleo</title>
+  <!-- Tema elegido por el usuario, aplicado antes de pintar (sin parpadeo). Sin elección: el del sistema. -->
+  <script>try { var t = localStorage.getItem("radar.tema"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body data-pagina="resultados">
   <header class="barra"><div class="contenido">
     <h1>Radar de Ofertas</h1>
     <nav><a href="index.html">Ofertas</a><a href="metricas.html">Panel de métricas</a></nav>
+    <button id="tema" type="button" class="tema">Modo claro</button>
   </div></header>
   <main>
     <div class="diseno">
@@ -29,7 +32,7 @@
         <label for="orden">Ordenar por</label>
         <select id="orden">
           <option value="descuento">Mayor % de descuento</option><option value="precio">Mejor precio</option>
-          <option value="nombre">Nombre</option><option value="calificacion">Calificación (Metascore)</option>
+          <option value="nombre">Nombre</option><option value="calificacion">Metascore</option>
         </select>
         <button id="limpiar" type="button" class="limpiar">Limpiar filtros</button>
       </aside>

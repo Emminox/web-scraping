@@ -4,12 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Panel de métricas · Radar de Ofertas</title>
+  <!-- Tema elegido por el usuario, aplicado antes de pintar (sin parpadeo). Sin elección: el del sistema. -->
+  <script>try { var t = localStorage.getItem("radar.tema"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body data-pagina="metricas">
   <header class="barra"><div class="contenido">
     <h1>Radar de Ofertas</h1>
     <nav><a href="index.html">Ofertas</a><a href="metricas.html">Panel de métricas</a></nav>
+    <button id="tema" type="button" class="tema">Modo claro</button>
   </div></header>
   <main id="contenido"><p>Cargando…</p></main>
   <footer><span id="actualizado"></span></footer>
