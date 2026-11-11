@@ -43,6 +43,7 @@ def config_de_prueba(
         rutas=ConfigRutas(
             capturas=directorio / "capturas",
             fixtures=directorio / "fixtures",
+            catalogo=directorio / "catalogo",
             base_datos=directorio / "radar.sqlite",
         ),
     )

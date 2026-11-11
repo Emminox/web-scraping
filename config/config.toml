@@ -69,6 +69,8 @@ semilla = 42
 capturas = "datos/capturas"
 # Páginas de ejemplo guardadas durante los spikes; se usan como entradas de prueba de los parsers.
 fixtures = "fixtures"
+# Carpeta con los archivos JSON del catálogo de juegos (formato en catalogo/README.md).
+catalogo = "catalogo"
 # Base de datos SQLite (ADR-003). No se sube a Git: se conserva entre ejecuciones según el ADR de
 # almacenamiento (pendiente). Para mediciones en replay, usar un archivo de configuración aparte que
 # apunte a otra base, para no mezclar precios capturados con el historial real.

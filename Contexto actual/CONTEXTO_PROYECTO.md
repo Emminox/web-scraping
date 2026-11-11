@@ -289,8 +289,13 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 - `radar/bd/`: esquema SQLite versión 1 (propuesta, ver `docs/esquema-bd.md`) y `abrir_bd()`, que activa
   claves foráneas, WAL y aplica el esquema. Observaciones de precio/calificación/duración son SOLO INSERT
   (trigger). Vistas `v_ultimo_precio` (con marca de desactualizado) y `v_minimo_historico`. Dinero en centavos.
-- `tests/`: 37 pruebas con `unittest` (sin internet). Ejecutar: `py -3.14 -m unittest -v`.
-- Aún NO existe: pipeline, colas, los tres modos, parsers, emparejamiento, carga del catálogo, sitio.
+- `catalogo/*.json` es la fuente de verdad del catálogo (formato en `catalogo/README.md`); hoy está VACÍO:
+  lo llenarán la etapa 0 (`descubiertos.json`) y el equipo (`casos-dificiles.json`, `manual.json`).
+  `radar/catalogo.py` lo valida (reporta todos los errores juntos) y lo sincroniza con la base en una sola
+  transacción: quitar un juego del archivo lo desactiva sin borrar su historial. Comando:
+  `py -3.14 -m radar.herramientas.cargar_catalogo` (muestra cuánto falta para 500 juegos / 3 plataformas / 50 casos).
+- `tests/`: 49 pruebas con `unittest` (sin internet). Ejecutar: `py -3.14 -m unittest -v`.
+- Aún NO existe: pipeline, colas, los tres modos, etapa 0 (descubrimiento), parsers, emparejamiento, sitio.
 
 ---
 

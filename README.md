@@ -29,7 +29,9 @@ radar/              Código del proyecto
   config.py         Carga y valida config.toml
   red/              Capa de red: robots.txt, límites por dominio, reintentos, almacén de capturas, métricas
   bd/               Base de datos SQLite: esquema.sql y conexión (ADR-003; explicado en docs/esquema-bd.md)
-  herramientas/     Utilidades de línea de comandos (explorar_fuente.py para los spikes)
+  catalogo.py       Lee, valida y carga el catálogo de juegos en la base
+  herramientas/     Comandos: explorar_fuente.py (spikes) y cargar_catalogo.py
+catalogo/           Catálogo de juegos en JSON: la fuente de verdad (formato en catalogo/README.md)
 tests/              Pruebas automáticas (no usan internet)
 fixtures/           Páginas de ejemplo guardadas en los spikes (entradas de prueba de los parsers)
 datos/capturas/     Respuestas descargadas: caché en vivo y fuente del modo replay (no se sube a Git)
@@ -58,6 +60,11 @@ Explorar una fuente candidata (spike del Hito 1): revisa robots.txt, hace UNA so
 User-Agent del proyecto, detecta señales de bloqueo o de datos embebidos y guarda la página en `fixtures/`:
 ```bash
 py -3.14 -m radar.herramientas.explorar_fuente "https://sitio.com/pagina" --buscar "59.99" --nombre ficha-juego
+```
+
+Cargar el catálogo de `catalogo/*.json` en la base y ver cuánto falta para los mínimos del enunciado:
+```bash
+py -3.14 -m radar.herramientas.cargar_catalogo
 ```
 
 _Pendiente (semana 2): ejecutar el pipeline en modo vivo / replay y en los tres modos (secuencial, concurrente, paralelo)._

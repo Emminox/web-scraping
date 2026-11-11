@@ -76,6 +76,7 @@ class ConfigRutas:
 
     capturas: Path
     fixtures: Path
+    catalogo: Path
     base_datos: Path
 
 
@@ -236,6 +237,7 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
         rutas=ConfigRutas(
             capturas=base_rutas / _requerido(rutas, "rutas", "capturas"),
             fixtures=base_rutas / _requerido(rutas, "rutas", "fixtures"),
+            catalogo=base_rutas / _requerido(rutas, "rutas", "catalogo"),
             base_datos=base_rutas / _requerido(rutas, "rutas", "base_datos"),
         ),
     )
