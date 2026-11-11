@@ -69,3 +69,7 @@ semilla = 42
 capturas = "datos/capturas"
 # Páginas de ejemplo guardadas durante los spikes; se usan como entradas de prueba de los parsers.
 fixtures = "fixtures"
+# Base de datos SQLite (ADR-003). No se sube a Git: se conserva entre ejecuciones según el ADR de
+# almacenamiento (pendiente). Para mediciones en replay, usar un archivo de configuración aparte que
+# apunte a otra base, para no mezclar precios capturados con el historial real.
+base_datos = "datos/radar.sqlite"

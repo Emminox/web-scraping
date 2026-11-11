@@ -263,14 +263,14 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 |---|---|---|
 | Lenguaje | **Aceptada: Python 3.14** (compilación normal con GIL; ejecutar con `py -3.14` en Windows) | ADR-001 |
 | Cliente HTTP (urllib vs httpx) | Propuesta: urllib de la biblioteca estándar detrás de una interfaz `Transporte` | ADR-002 |
-| Base de datos | Pendiente | — |
+| Base de datos | Propuesta: SQLite, escrita solo por la etapa Persistir (un hilo); catálogo base versionado como archivo de texto | ADR-003 |
 | Definición de "oferta" | Pendiente | — |
 | Fuentes por tipo de dato | Pendiente — requiere spikes | — |
 | Límites de concurrencia (workers, colas, por dominio) | Pendiente | — |
 | Modo replay: servidor vs adaptador | Pendiente | — |
 | Algoritmo de emparejamiento | Pendiente | — |
 | Hosting + tarea programada | Pendiente | — |
-| Almacenamiento de capturas replay y BD (Git LFS / Releases / BD en la nube) | Pendiente | — |
+| Almacenamiento de capturas replay y BD (Git LFS / Releases / BD en la nube) | Pendiente — preferida: GitHub Releases | — |
 | Asignación de roles | Pendiente | `docs/acta.md` |
 
 **Repositorio Git:** inicializado localmente (rama `main`); falta crear el remoto en GitHub e invitar al equipo.
@@ -286,8 +286,11 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
   por dominio. Errores tipados: `ErrorTemporal`, `ErrorDefinitivo`, `BloqueadoPorRobots`, `SinCaptura`,
   `ReintentosAgotados` (este último alimentará la cola de fallidos).
 - `radar/herramientas/explorar_fuente.py`: herramienta para los spikes de fuentes; guarda fixtures en `fixtures/`.
-- `tests/`: pruebas con `unittest` (sin internet). Ejecutar: `py -3.14 -m unittest -v`.
-- Aún NO existe: pipeline, colas, los tres modos, parsers, emparejamiento, BD, sitio.
+- `radar/bd/`: esquema SQLite versión 1 (propuesta, ver `docs/esquema-bd.md`) y `abrir_bd()`, que activa
+  claves foráneas, WAL y aplica el esquema. Observaciones de precio/calificación/duración son SOLO INSERT
+  (trigger). Vistas `v_ultimo_precio` (con marca de desactualizado) y `v_minimo_historico`. Dinero en centavos.
+- `tests/`: 37 pruebas con `unittest` (sin internet). Ejecutar: `py -3.14 -m unittest -v`.
+- Aún NO existe: pipeline, colas, los tres modos, parsers, emparejamiento, carga del catálogo, sitio.
 
 ---
 

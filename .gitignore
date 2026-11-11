@@ -35,4 +35,7 @@ Desktop.ini
 # se versionan según el ADR de almacenamiento (Git LFS / Releases / BD en la nube).
 cache/
 datos/capturas/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 *.log

@@ -40,7 +40,11 @@ def config_de_prueba(
             ttl_almacen_horas=ttl_horas,
         ),
         replay=ConfigReplay(latencia_ms=latencia_ms, variacion_ms=0, semilla=1),
-        rutas=ConfigRutas(capturas=directorio / "capturas", fixtures=directorio / "fixtures"),
+        rutas=ConfigRutas(
+            capturas=directorio / "capturas",
+            fixtures=directorio / "fixtures",
+            base_datos=directorio / "radar.sqlite",
+        ),
     )
 
 

@@ -28,6 +28,7 @@ config/config.toml  Configuración: modo, fuente (vivo/replay), límites de red,
 radar/              Código del proyecto
   config.py         Carga y valida config.toml
   red/              Capa de red: robots.txt, límites por dominio, reintentos, almacén de capturas, métricas
+  bd/               Base de datos SQLite: esquema.sql y conexión (ADR-003; explicado en docs/esquema-bd.md)
   herramientas/     Utilidades de línea de comandos (explorar_fuente.py para los spikes)
 tests/              Pruebas automáticas (no usan internet)
 fixtures/           Páginas de ejemplo guardadas en los spikes (entradas de prueba de los parsers)
