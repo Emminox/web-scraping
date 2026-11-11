@@ -169,13 +169,65 @@ async function paginaResultados() {
     $("#filtro-tienda").append(el("option", { value: codigo, text: nombre }));
   }
 
+  // Filtros recordados. Se guardan en la URL (al volver con "atrás" desde un juego, o al compartir el enlace,
+  // se ve lo mismo) y en el navegador (el menú "Ofertas" abre index.html sin parámetros, y la última selección
+  // queda como predeterminada para la próxima visita). La URL manda sobre lo guardado.
+  const CONTROLES = { q: "#buscar", tipo: "#filtro-tipo", plataforma: "#filtro-plataforma", formato: "#filtro-formato",
+                      tienda: "#filtro-tienda", ofertas: "#solo-ofertas", orden: "#orden" };
+  const CLAVE_GUARDADO = "radar.filtros";
+  // Valores predeterminados tomados del HTML, no del estado actual: al volver con "atrás" el navegador ya
+  // rellenó algunos campos antes de que corra este código, y entonces se confundían con los predeterminados.
+  const POR_DEFECTO = Object.fromEntries(Object.entries(CONTROLES).map(([k, s]) => [k, predeterminado($(s))]));
   let pagina = 1;
-  const controles = ["#buscar", "#filtro-tipo", "#filtro-plataforma", "#filtro-formato", "#filtro-tienda", "#solo-ofertas", "#orden"];
-  for (const selector of controles) {
+
+  function predeterminado(control) {
+    if (control.type === "checkbox") return control.defaultChecked ? "1" : "";
+    if (control.tagName === "SELECT") return ([...control.options].find((o) => o.defaultSelected) || control.options[0]).value;
+    return control.defaultValue;
+  }
+  function valorDe(control) { return control.type === "checkbox" ? (control.checked ? "1" : "") : control.value; }
+  function poner(control, valor) {
+    if (control.type === "checkbox") { control.checked = valor === "1"; return; }
+    // Solo valores que existen (p. ej. una tienda que ya no tiene juegos publicados se ignora).
+    if (control.tagName === "SELECT" && ![...control.options].some((o) => o.value === valor)) return;
+    control.value = valor;
+  }
+  function restaurar() {
+    let estado = Object.fromEntries(new URLSearchParams(location.search));
+    if (Object.keys(estado).length === 0) {
+      try { estado = JSON.parse(localStorage.getItem(CLAVE_GUARDADO)) || {}; } catch { estado = {}; }
+    }
+    // TODOS los campos se fijan (lo que no está guardado vuelve al predeterminado), así no queda nada que el
+    // navegador haya rellenado por su cuenta.
+    for (const [clave, selector] of Object.entries(CONTROLES)) {
+      poner($(selector), POR_DEFECTO[clave]);
+      if (typeof estado[clave] === "string") poner($(selector), estado[clave]);
+    }
+    pagina = Math.max(1, parseInt(estado.pagina, 10) || 1);
+  }
+  function guardar() {
+    const estado = {};
+    for (const [clave, selector] of Object.entries(CONTROLES)) {
+      const valor = valorDe($(selector));
+      if (valor !== POR_DEFECTO[clave]) estado[clave] = valor;  // Solo lo que cambia: URLs cortas.
+    }
+    if (pagina > 1) estado.pagina = String(pagina);
+    const consulta = new URLSearchParams(estado).toString();
+    history.replaceState(null, "", consulta ? "?" + consulta : location.pathname);
+    try { localStorage.setItem(CLAVE_GUARDADO, JSON.stringify(estado)); } catch { /* Navegación privada: solo URL. */ }
+  }
+
+  restaurar();
+  for (const selector of Object.values(CONTROLES)) {
     $(selector).addEventListener("input", () => { pagina = 1; dibujar(); });
   }
   $("#anterior").addEventListener("click", () => { pagina -= 1; dibujar(); });
   $("#siguiente").addEventListener("click", () => { pagina += 1; dibujar(); });
+  $("#limpiar").addEventListener("click", () => {
+    for (const [clave, selector] of Object.entries(CONTROLES)) poner($(selector), POR_DEFECTO[clave]);
+    pagina = 1;
+    dibujar();
+  });
 
   function filtrar() {
     const texto = $("#buscar").value.trim().toLowerCase();
@@ -239,6 +291,7 @@ async function paginaResultados() {
     $("#pagina").textContent = `Página ${pagina} de ${paginas}`;
     $("#anterior").disabled = pagina <= 1;
     $("#siguiente").disabled = pagina >= paginas;
+    guardar();
   }
   dibujar();
 }
