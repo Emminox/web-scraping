@@ -53,6 +53,13 @@ class PruebasNormalizar(unittest.TestCase):
         self.assertEqual(caja.ediciones, frozenset())  # Neutra: no es otra edición.
         self.assertEqual(normalizar("Ring Fit Adventure Physical Edition").texto, "ring fit adventure")
 
+    def test_tipo_por_titulo(self):
+        from radar.emparejamiento.normalizar import tipo_por_titulo
+        self.assertEqual(tipo_por_titulo("Splatoon 2: Octo Expansion"), "dlc")
+        self.assertEqual(tipo_por_titulo("Xenoblade Chronicles 3: Expansion Pass Wave 4 - Future Redeemed"), "dlc")
+        self.assertEqual(tipo_por_titulo("Pokemon Sword / Shield Dual Pack"), "otro")
+        self.assertEqual(tipo_por_titulo("Hades II"), "juego")
+
     def test_anio_entre_parentesis(self):
         # Metacritic distingue juegos homónimos con el año; las tiendas no lo escriben.
         self.assertEqual(normalizar("Unreal Tournament (1999)").texto, "unreal tournament")

@@ -30,6 +30,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
+from radar.emparejamiento.normalizar import tipo_por_titulo
 from radar.fuentes import cheapshark
 from radar.pipeline.modelos import ErrorEtapa
 from radar.red.modelos import ahora_utc
@@ -273,14 +274,22 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
         metascores = [c["puntaje"] for c in calificaciones[juego["id"]] if c["fuente"] == "Metacritic"]
         steam = [c["puntaje"] for c in calificaciones[juego["id"]] if c["fuente"] == "Reseñas de usuarios de Steam"]
 
+        # Tipo del juego del catálogo (DLC o paquete según su título) y de cada oferta: una tienda que vende un DLC
+        # lo marca como "juego", así que las ofertas de un DLC heredan el tipo del catálogo.
+        tipo_juego = tipo_por_titulo(juego["titulo_canonico"]) if juego["tipo"] == "juego" else juego["tipo"]
+
+        def tipo_oferta(p) -> str:
+            tipo = p["tipo_producto"] or "juego"
+            return tipo_juego if tipo == "juego" else tipo
+
         tarjetas.append({
             "clave": juego["clave"],
             "titulo": juego["titulo_canonico"],
-            "tipo": juego["tipo"],
+            "tipo": tipo_juego,
             # Tipos de lo que realmente se vende (filtro "tipo" del sitio): el del juego del catálogo más el de cada
             # producto con precio. Antes solo se usaba el del catálogo (siempre "juego"), así que el filtro
             # "Juego + DLC" nunca encontraba nada aunque una tienda vendiera la edición GOTY.
-            "tipos": sorted({juego["tipo"]} | {p["tipo_producto"] or "juego" for p in precios}),
+            "tipos": sorted({tipo_juego} | {tipo_oferta(p) for p in precios}),
             # Steam 600x900 -> carátula de Best Buy -> Metacritic 192x288 (con su original como "hd", que solo se
             # descarga en pantallas con escala) -> arte cuadrado de Nintendo 1024x1024.
             "imagenes": _candidatas([
@@ -306,7 +315,7 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
                 "plataforma": p["plataforma_codigo"],
                 "formato": p["formato"],
                 "tienda": p["tienda"],
-                "tipo": p["tipo_producto"] or "juego",
+                "tipo": tipo_oferta(p),
                 "precio": p["precio_actual_centavos"],
                 "regular": p["precio_regular_centavos"],
                 "descuento": _descuento(p["precio_actual_centavos"], p["precio_regular_centavos"]),
@@ -321,7 +330,7 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
             "generado_en": generado,
             "clave": juego["clave"],
             "titulo": juego["titulo_canonico"],
-            "tipo": juego["tipo"],
+            "tipo": tipo_juego,
             # En el detalle hay UNA sola imagen: se puede pedir directamente el original de Metacritic.
             "imagenes": _candidatas([
                 (steam_portada, None), (caratula, None, True),
@@ -442,10 +451,14 @@ def generar_metricas(conexion: sqlite3.Connection, destino: Path, mediciones: Pa
                    "WHERE j.activo = 1 AND (p.estado_emparejamiento = 'dudoso' OR "
                    "(p.estado_emparejamiento = 'aceptado' AND p.motivo_duda IS NOT NULL)) "
                    "ORDER BY p.estado_emparejamiento DESC, j.titulo_canonico, f.codigo")]
-    sin_emparejar = [f["titulo_canonico"] for f in conexion.execute(
-        "SELECT titulo_canonico FROM juego j WHERE activo = 1 AND NOT EXISTS ("
+    # Con sus plataformas, para que la lista del panel diga dónde se buscó cada uno.
+    sin_emparejar = [{"titulo": f["titulo_canonico"], "plataformas": f["plataformas"].split("|") if f["plataformas"] else []}
+                     for f in conexion.execute(
+        "SELECT j.titulo_canonico, (SELECT group_concat(pl.nombre, '|') FROM juego_plataforma jp "
+        "  JOIN plataforma pl ON pl.codigo = jp.plataforma_codigo WHERE jp.juego_id = j.id) AS plataformas "
+        "FROM juego j WHERE j.activo = 1 AND NOT EXISTS ("
         "SELECT 1 FROM producto_tienda p WHERE p.juego_id = j.id AND p.estado_emparejamiento = 'aceptado') "
-        "ORDER BY titulo_canonico")]
+        "ORDER BY j.titulo_canonico")]
     activos = conexion.execute("SELECT COUNT(*) FROM juego WHERE activo = 1").fetchone()[0]
     publicados = 0
     ruta_juegos = destino / "datos" / "juegos.json"

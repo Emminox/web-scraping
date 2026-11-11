@@ -49,6 +49,8 @@ PALABRAS_DLC = {
     "dlc", "soundtrack", "ost", "season pass", "expansion pass", "expansion", "bundle", "pack",
     "upgrade", "add on", "artbook", "demo", "costume", "skin", "currency", "coins", "points",
 }
+# De las anteriores, las que indican un PAQUETE (varios productos juntos) y no contenido descargable.
+PALABRAS_PAQUETE = {"bundle", "pack"}
 
 ROMANOS = {
     "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7", "viii": "8", "ix": "9",
@@ -130,3 +132,16 @@ def normalizar(titulo: str) -> TituloNormalizado:
         ediciones=frozenset(ediciones - EDICIONES_NEUTRAS),
         dlc=frozenset(dlc),
     )
+
+
+def tipo_por_titulo(titulo: str) -> str:
+    """Tipo de un título del catálogo según sus palabras: "dlc", "otro" (paquete) o "juego".
+
+    El descubrimiento toma listados de juegos de Metacritic, pero algunos son DLC ("Splatoon 2: Octo Expansion") o
+    paquetes ("Pokemon Sword / Shield Dual Pack"). Las tiendas los venden como "juego", así que sin esto el filtro
+    "DLC" del sitio nunca encontraba nada.
+    """
+    marcas = normalizar(titulo).dlc
+    if marcas - PALABRAS_PAQUETE:
+        return "dlc"
+    return "otro" if marcas else "juego"

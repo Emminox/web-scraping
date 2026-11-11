@@ -135,3 +135,10 @@ svg.grafico text { fill: var(--suave); font-size: 11px; }
 .minimos-columnas { display: flex; gap: 36px; justify-content: center; }
 .minimos-columnas b { font-size: 18px; }
 .error { color: var(--oferta); }
+/* Listas largas del panel (juegos sin emparejar): numeradas, en columnas que se adaptan al ancho. */
+/* El espacio del número va en cada elemento (no en la lista): si no, en la 2.ª columna el número quedaba pegado
+   al texto de la 1.ª. */
+.lista-columnas { column-width: 300px; column-gap: 32px; margin: 10px 0 0; padding-left: 0; font-size: 14px; }
+.lista-columnas li { break-inside: avoid; padding: 2px 0; margin-left: 3.2em; }
+.buscador-lista { width: 100%; max-width: 360px; padding: 7px; border-radius: 6px; border: 1px solid var(--borde);
+                  background: var(--fondo); color: var(--texto); margin-top: 6px; }

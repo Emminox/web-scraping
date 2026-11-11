@@ -603,6 +603,8 @@ function enlaceExterno(url, texto) {
 // Página de detalle
 // ---------------------------------------------------------------------------------------------
 
+const NOMBRES_TIPO = { juego: "Juego", juego_dlc: "Juego + DLC", dlc: "DLC", otro: "Otro (paquete)" };
+
 async function paginaDetalle() {
   const contenido = $("#contenido");
   const clave = new URLSearchParams(location.search).get("clave") || "";
@@ -660,7 +662,7 @@ async function paginaDetalle() {
         el("div", { class: "portada" }, portada),
         el("div", {},
           el("h2", { text: juego.titulo }),
-          el("p", { class: "nota", text: `Tipo: ${juego.tipo}` }),
+          el("p", { class: "nota", text: `Tipo: ${NOMBRES_TIPO[juego.tipo] || juego.tipo}` }),
           el("section", { class: "panel" },
             el("div", { class: "panel-cabecera" }, el("h2", { text: "Precios (de menor a mayor)" }), local),
             aviso, precios),
@@ -718,8 +720,28 @@ async function paginaMetricas() {
     m.dudosos.length ? tabla(["Juego", "Tienda", "Producto", "Similitud", "Estado", "Motivo"],
       m.dudosos.map((d) => [d.juego, d.tienda, enlaceExterno(d.url, d.producto), d.similitud.toFixed(2), d.estado, d.motivo]), [3])
       : el("p", { class: "nota", text: "Sin casos dudosos." })));
-  secciones.push(el("section", { class: "panel" }, el("h2", { text: `Juegos sin emparejar en ninguna tienda (${m.sin_emparejar.length})` }),
-    m.sin_emparejar.length ? el("p", { text: m.sin_emparejar.join(" · ") }) : el("p", { class: "nota", text: "Todos los juegos tienen al menos una tienda." })));
+  // Lista numerada en orden alfabético, en columnas, con un buscador: antes era un solo párrafo con todos los
+  // títulos separados por "·" (más de 300), imposible de leer.
+  const sinEmparejar = [...m.sin_emparejar]
+    .map((j) => (typeof j === "string" ? { titulo: j, plataformas: [] } : j))  // Formato anterior: solo el título.
+    .sort((a, b) => a.titulo.localeCompare(b.titulo, "es", { sensitivity: "base" }));
+  const seccionSinEmparejar = el("section", { class: "panel" },
+    el("h2", { text: `Juegos sin emparejar en ninguna tienda (${sinEmparejar.length})` }),
+    el("p", { class: "nota", text: "Juegos del catálogo para los que ninguna tienda tiene un producto aceptado (no se publican). Entre paréntesis, las plataformas en las que se buscaron." }));
+  if (sinEmparejar.length) {
+    const buscador = el("input", { type: "search", placeholder: "Buscar en la lista…", class: "buscador-lista", "aria-label": "Buscar juegos sin emparejar" });
+    const lista = el("ol", { class: "lista-columnas" }, ...sinEmparejar.map((j) =>
+      el("li", {}, document.createTextNode(j.titulo),
+        j.plataformas.length ? el("span", { class: "nota", text: ` (${j.plataformas.join(", ")})` }) : null)));
+    buscador.addEventListener("input", () => {
+      const texto = buscador.value.trim().toLowerCase();
+      for (const item of lista.children) item.hidden = Boolean(texto) && !item.textContent.toLowerCase().includes(texto);
+    });
+    seccionSinEmparejar.append(buscador, lista);
+  } else {
+    seccionSinEmparejar.append(el("p", { class: "nota", text: "Todos los juegos tienen al menos una tienda." }));
+  }
+  secciones.push(seccionSinEmparejar);
 
   const mediciones = el("section", { class: "panel" }, el("h2", { text: "Curvas de speedup (modo replay)" }));
   if (m.mediciones.length === 0) {
