@@ -40,20 +40,23 @@ docs/               Acta, seguimiento, ADRs, cambios de diseño, bitácora de IA
 ```
 
 ## Requisitos
-- Python 3.12 o superior (ver ADR-001). Por ahora no hay dependencias externas (ADR-002).
+- **Python 3.14** (última versión 3.14.x, compilación normal con GIL; ver ADR-001). Todo el equipo, GitHub
+  Actions y la máquina de medición usan la misma versión. Por ahora no hay dependencias externas (ADR-002).
+- En Windows, `python` puede apuntar a otra versión instalada. Usen el lanzador `py -3.14` (comprobar con
+  `py -3.14 --version`). En macOS/Linux, `python3.14`.
 
 ## Cómo ejecutar
 Todos los comandos se ejecutan desde la raíz del repositorio.
 
 Correr las pruebas:
 ```bash
-python -m unittest -v
+py -3.14 -m unittest -v
 ```
 
 Explorar una fuente candidata (spike del Hito 1): revisa robots.txt, hace UNA solicitud con el
 User-Agent del proyecto, detecta señales de bloqueo o de datos embebidos y guarda la página en `fixtures/`:
 ```bash
-python -m radar.herramientas.explorar_fuente "https://sitio.com/pagina" --buscar "59.99" --nombre ficha-juego
+py -3.14 -m radar.herramientas.explorar_fuente "https://sitio.com/pagina" --buscar "59.99" --nombre ficha-juego
 ```
 
 _Pendiente (semana 2): ejecutar el pipeline en modo vivo / replay y en los tres modos (secuencial, concurrente, paralelo)._

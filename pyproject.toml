@@ -7,5 +7,5 @@ name = "radar-ofertas"
 version = "0.1.0"
 description = "Radar de Ofertas Multinúcleo: web scraping secuencial y paralelo (IC-3101, TEC)"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"  # Ver ADR-001.
 dependencies = []

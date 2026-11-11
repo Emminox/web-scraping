@@ -9,11 +9,11 @@ pegar en la ficha de la fuente (``/fuente-nueva``).
 
 Uso (desde la raíz del repositorio)::
 
-    python -m radar.herramientas.explorar_fuente URL [--buscar TEXTO ...] [--nombre NOMBRE]
+    py -3.14 -m radar.herramientas.explorar_fuente URL [--buscar TEXTO ...] [--nombre NOMBRE]
 
 Ejemplo::
 
-    python -m radar.herramientas.explorar_fuente "https://sitio.com/juego/123" --buscar "59.99" --nombre ficha-juego
+    py -3.14 -m radar.herramientas.explorar_fuente "https://sitio.com/juego/123" --buscar "59.99" --nombre ficha-juego
 
 ``--buscar`` sirve para comprobar si un dato que se VE en el navegador (un precio, un título) viene
 en el HTML que recibe un programa. Si no aparece, probablemente lo genera JavaScript.

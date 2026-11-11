@@ -32,5 +32,5 @@ Hosting y tarea programada · Almacenamiento de capturas y BD.
 ## Índice
 | # | Título | Estado |
 |---|---|---|
-| [001](001-lenguaje-python.md) | Lenguaje de implementación: Python 3.12 | Aceptada |
+| [001](001-lenguaje-python.md) | Lenguaje de implementación: Python 3.14 | Aceptada |
 | [002](002-cliente-http-biblioteca-estandar.md) | Cliente HTTP con la biblioteca estándar | Propuesta |
