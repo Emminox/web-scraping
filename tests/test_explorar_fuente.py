@@ -16,6 +16,12 @@ class PruebasSenales(unittest.TestCase):
     def test_pagina_limpia(self):
         self.assertEqual(detectar_senales("<html><h1>Juego</h1><span>$59.99</span></html>"), ([], []))
 
+    def test_sin_falsos_positivos_de_metacritic(self):
+        # Fragmentos reales de una página normal de Metacritic que antes se marcaban como bloqueo.
+        html = ('recaptcha:{sitekey:"6Lf"}, <script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js">'
+                '</script><h1>Elden Ring</h1>')
+        self.assertEqual(detectar_senales(html)[0], [])
+
     def test_decodifica_con_el_charset_declarado(self):
         r = respuesta("https://a.com", cuerpo="Pokémon".encode("latin-1"),
                       **{"Content-Type": "text/html; charset=ISO-8859-1"})

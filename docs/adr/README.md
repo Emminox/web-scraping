@@ -32,6 +32,13 @@ Hosting y tarea programada · Almacenamiento de capturas y BD.
 ## Índice
 | # | Título | Estado |
 |---|---|---|
-| [001](001-lenguaje-python.md) | Lenguaje de implementación: Python 3.14 | Aceptada |
+| [001](001-lenguaje-python.md) | Lenguaje de implementación | Aceptada |
 | [002](002-cliente-http-biblioteca-estandar.md) | Cliente HTTP con la biblioteca estándar | Aceptada |
-| [003](003-base-de-datos-sqlite.md) | Base de datos: SQLite con un único escritor | Aceptada |
+| [003](003-base-de-datos-sqlite.md) | Base de datos: SQLite | Aceptada |
+| [004](004-fuentes-de-datos.md) | Fuentes de datos por tipo | Aceptada |
+| [005](005-definicion-de-oferta-y-msrp.md) | Definición de "oferta" y origen del MSRP | Aceptada |
+| [006](006-algoritmo-de-emparejamiento.md) | Algoritmo de emparejamiento de títulos | Aceptada |
+| [007](007-duracion-how-long-to-beat.md) | Fuente de duración (How Long To Beat) | Propuesta |
+| [008](008-limites-de-concurrencia.md) | Límites de concurrencia por etapa y por dominio | Propuesta |
+| [009](009-modo-replay.md) | Modo replay: adaptador en el cliente HTTP | Aceptada |
+| [010](010-hosting-y-tarea-programada.md) | Hosting, tarea programada y almacenamiento de la base | Aceptada |

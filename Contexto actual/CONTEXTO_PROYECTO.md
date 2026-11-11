@@ -256,58 +256,48 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 
 ## 7. Estado actual (ACTUALIZAR SIEMPRE)
 
-**Fecha de última actualización:** 2026-11-10
-**Hito en curso:** H1 · Diseño (semana 1)
+**Fecha de última actualización:** 2026-11-11
+**Hito en curso:** H1 · Diseño (semana 1), con el sistema ya funcional de punta a punta.
 
 | Decisión | Estado | ADR |
 |---|---|---|
-| Lenguaje | **Aceptada: Python 3.14** (compilación normal con GIL; ejecutar con `py -3.14` en Windows) | ADR-001 |
-| Cliente HTTP (urllib vs httpx) | Propuesta: urllib de la biblioteca estándar detrás de una interfaz `Transporte` | ADR-002 |
-| Base de datos | Propuesta: SQLite, escrita solo por la etapa Persistir (un hilo); catálogo base versionado como archivo de texto | ADR-003 |
-| Definición de "oferta" | Pendiente | — |
-| Fuentes por tipo de dato | Pendiente — requiere spikes | — |
-| Límites de concurrencia (workers, colas, por dominio) | Pendiente | — |
-| Modo replay: servidor vs adaptador | Pendiente | — |
-| Algoritmo de emparejamiento | Pendiente | — |
-| Hosting + tarea programada | Pendiente | — |
-| Almacenamiento de capturas replay y BD (Git LFS / Releases / BD en la nube) | Pendiente — preferida: GitHub Releases | — |
+| Lenguaje: Python 3.14 (con GIL; `py -3.14` en Windows) | Aceptada | ADR-001 |
+| Cliente HTTP: urllib detrás de `Transporte` | Aceptada | ADR-002 |
+| Base de datos: SQLite, único escritor = etapa Persistir | Aceptada | ADR-003 |
+| Fuentes: Metacritic (descubrimiento + Metascore + imagen), Steam (precios + reseñas), Nintendo eShop (vía sitemap), GOG (API), Best Buy (minorista) | Aceptada | ADR-004 |
+| Oferta = precio < regular de la tienda, o < MSRP si no hay regular; MSRP = regular de la tienda oficial | Aceptada | ADR-005 |
+| Emparejamiento: Levenshtein en Python puro, umbral 0,88 PROVISIONAL, banda dudosa 0,80–0,88 | Aceptada (falta validar con 60 pares) | ADR-006 |
+| Duración: How Long To Beat PROHÍBE el scraping en su robots.txt → IGDB pendiente de credenciales | Propuesta | ADR-007 |
+| Límites de concurrencia (workers, colas, por dominio) | Propuesta (provisional hasta barridos) | ADR-008 |
+| Replay: adaptador dentro de ClienteHttp (almacén de capturas) | Aceptada | ADR-009 |
+| Hosting: GitHub Pages + Actions diario + base en la Release `datos` | Aceptada (falta activar Pages) | ADR-010 |
 | Asignación de roles | Pendiente | `docs/acta.md` |
 
-**Repositorio Git:** https://github.com/Emminox/web-scraping (rama `main`). Falta confirmar que el equipo
-fue invitado y que `main` está protegida (pull request con 1 aprobación).
+**Repositorio:** https://github.com/Emminox/web-scraping · **Sitio:** https://emminox.github.io/web-scraping/
+(cuando se active Settings → Pages → Source: GitHub Actions). **Tablero:** aún no existe.
 **Commits y PRs:** NO agregar `Co-Authored-By: Claude` ni "Generated with Claude Code" (acordado el
 2026-11-11). El uso de IA se declara en `docs/bitacora-ia.md`.
-**Estructura `docs/`:** creada con plantillas (acta, seguimiento, cambios de diseño, bitácora de IA, ADRs).
-**URL del sitio:** aún no existe. **Tablero:** aún no existe.
 
-**Código existente (rama `feat/base-proyecto`):**
-- `config/config.toml` + `radar/config.py`: configuración validada (modo, fuente vivo/replay, límites de red
-  PROVISIONALES, latencia simulada, rutas).
-- `radar/red/`: `ClienteHttp` único para todo el proyecto — robots.txt, User-Agent del proyecto, semáforo e
-  intervalo por dominio, timeout, reintentos con backoff exponencial + jitter (y Retry-After), almacén de
-  capturas en `datos/capturas/` (caché en vivo = fuente del replay), latencia simulada en replay, métricas
-  por dominio. Errores tipados: `ErrorTemporal`, `ErrorDefinitivo`, `BloqueadoPorRobots`, `SinCaptura`,
-  `ReintentosAgotados` (este último alimentará la cola de fallidos).
-- `radar/herramientas/explorar_fuente.py`: herramienta para los spikes de fuentes; guarda fixtures en `fixtures/`.
-- `radar/bd/`: esquema SQLite versión 1 (propuesta, ver `docs/esquema-bd.md`) y `abrir_bd()`, que activa
-  claves foráneas, WAL y aplica el esquema. Observaciones de precio/calificación/duración son SOLO INSERT
-  (trigger). Vistas `v_ultimo_precio` (con marca de desactualizado) y `v_minimo_historico`. Dinero en centavos.
-- `catalogo/*.json` es la fuente de verdad del catálogo (formato en `catalogo/README.md`); hoy está VACÍO:
-  lo llenarán la etapa 0 (`descubiertos.json`) y el equipo (`casos-dificiles.json`, `manual.json`).
-  `radar/catalogo.py` lo valida (reporta todos los errores juntos) y lo sincroniza con la base en una sola
-  transacción: quitar un juego del archivo lo desactiva sin borrar su historial. Comando:
-  `py -3.14 -m radar.herramientas.cargar_catalogo` (muestra cuánto falta para 500 juegos / 3 plataformas / 50 casos).
-- `radar/pipeline/` (rama `feat/esqueleto-pipeline`): orquestador de las 6 etapas con colas acotadas y los
-  3 modos (`ejecutar_pipeline(definicion, modo, config.pipeline)`). Secuencial = bucles sin hilos (T_sec);
-  concurrente = hilos en Descubrir/Descargar; paralelo = además ProcessPoolExecutor (o hilos) en Emparejar.
-  Las etapas son funciones de una `DefinicionPipeline` (aún solo falsas, en `tests/pipeline_falso.py`).
-  Límites provisionales en `[pipeline]` de config.toml. Diseño y argumentos de corrección: `docs/pipeline.md`.
-- `tests/`: 59 pruebas con `unittest` (sin internet), incluida la de equivalencia de los 3 modos.
-  Ejecutar: `py -3.14 -m unittest -v`.
-- Aún NO existe: etapas reales (descubrimiento, descarga, parsers, emparejamiento, persistencia, sitio),
-  reintento final de la cola de fallidos, guardado de métricas por ejecución.
+**Cómo se ejecuta:** `py -3.14 -m radar ejecutar --modo concurrente --fuente vivo` (o `--fuente replay`;
+prueba rápida: `--plataformas pc --paginas 1 --por-pagina 5`). Ver README.
 
----
+**Código (ramas `feat/esqueleto-pipeline` → `feat/sistema-funcional`, pendientes de PR a `main`):**
+- `radar/red/`: ClienteHttp único: robots.txt, User-Agent, semáforo + intervalo por dominio, timeout,
+  backoff + jitter, almacén de capturas (caché en vivo = fuente del replay), métricas por dominio.
+- `radar/pipeline/`: 6 etapas con colas acotadas y los 3 modos (secuencial sin hilos = T_sec). Cada juego entra
+  UNA VEZ POR PLATAFORMA (`clave@plataforma`). Diseño en `docs/pipeline.md`.
+- `radar/fuentes/`: parsers puros por sitio, probados con páginas reales en `fixtures/`.
+- `radar/emparejamiento/`: normalización (plataforma, edición, DLC, romanos) + Levenshtein; aceptado/dudoso/rechazado.
+- `radar/persistencia.py`: etapa Persistir (un hilo); producto disputado → mejor estado/similitud/clave (determinista).
+- `radar/sitio/`: sitio estático (filtros, orden, paginación, detalle con historial, panel de métricas).
+- `radar/ejecucion.py` + `python -m radar`: ejecución completa, reintento final de la cola de fallidos, métricas.
+- `radar/bd/`: esquema v2 con migración automática desde v1. `catalogo/*.json`: solo juegos MANUALES.
+- `.github/workflows/actualizar-sitio.yml`: tarea diaria que actualiza y publica.
+- Pruebas: `py -3.14 -m unittest` (todas sin internet).
+
+**Pendiente:** IGDB para duración (credenciales), conjunto de validación de ≥60 pares y precisión/recall,
+experimento de contención, barridos en replay (DESPUÉS de entregar predicciones del H1), PlayStation Store,
+paralelismo "por tienda", acta/roles/tablero/seguimiento/bitácora de IA.
 
 ## 8. Plan de ejecución propuesto (pendiente de aprobar por el equipo)
 

@@ -41,9 +41,13 @@ from radar.red import (
 
 # Pistas en el HTML que suelen indicar un bloqueo o desafío anti-bots. No se intenta evadirlos
 # (está prohibido por el enunciado): si aparecen, la fuente se sustituye con un ADR.
+#
+# Las pistas son específicas a propósito: "captcha" a secas o "challenge-platform" aparecen también en páginas
+# normales (configuración de inicio de sesión, script de Cloudflare que se carga en todo el sitio) y daban
+# falsos positivos en el spike de Metacritic.
 SENALES_BLOQUEO: dict[str, tuple[str, ...]] = {
-    "CAPTCHA": ("captcha", "g-recaptcha", "hcaptcha"),
-    "Desafío de Cloudflare": ("cf-chl", "challenge-platform", "just a moment..."),
+    "CAPTCHA": ('class="g-recaptcha"', "h-captcha", "captcha-container", "please solve the captcha"),
+    "Desafío de Cloudflare": ("cf-chl", "cf_chl_opt", "just a moment...", "checking your browser"),
     "Protección anti-bots (Akamai/PerimeterX/otros)": (
         "px-captcha", "_pxhd", "access denied", "robot or human", "are you a robot",
     ),

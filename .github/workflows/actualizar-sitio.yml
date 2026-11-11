@@ -1,0 +1,71 @@
+# Tarea programada (sección 9 del enunciado): actualiza los precios y publica el sitio en GitHub Pages.
+# Decisión y alternativas en docs/adr/010-hosting-y-tarea-programada.md.
+#
+# Requisito único (lo hace una persona del equipo): Settings → Pages → Source: "GitHub Actions".
+name: Actualizar sitio
+
+on:
+  schedule:
+    - cron: "0 12 * * *"   # Todos los días a las 12:00 UTC (6:00 en Costa Rica).
+  workflow_dispatch:        # Permite ejecutarlo a mano desde la pestaña Actions.
+
+permissions:
+  contents: write   # Para guardar la base de datos como asset de la Release "datos".
+  pages: write      # Para publicar en GitHub Pages.
+  id-token: write   # Requerido por actions/deploy-pages.
+
+# Nunca dos actualizaciones a la vez: ambas descargarían la misma base y una pisaría a la otra.
+concurrency:
+  group: actualizar-sitio
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Pruebas
+        run: python -m unittest
+
+      # La base con el historial de precios vive en la Release "datos" (no en el repositorio: cambia en cada
+      # ejecución y pesaría cada vez más en el historial de Git).
+      - name: Descargar la base de la ejecución anterior
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p datos
+          gh release download datos --pattern radar.sqlite --dir datos \
+            || echo "Primera ejecución: todavía no hay base previa."
+
+      - name: Ejecutar el pipeline (modo concurrente, datos en vivo)
+        run: python -m radar ejecutar --modo concurrente --fuente vivo
+
+      - name: Guardar la base actualizada
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -f datos/radar.sqlite || exit 0
+          gh release view datos > /dev/null 2>&1 || gh release create datos \
+            --title "Datos del Radar" --notes "Base SQLite con el historial de precios. La actualiza el workflow Actualizar sitio."
+          gh release upload datos datos/radar.sqlite --clobber
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sitio
+
+  publicar:
+    needs: actualizar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - id: despliegue
+        uses: actions/deploy-pages@v4

@@ -6,12 +6,14 @@ Sitio web público de ofertas de videojuegos alimentado por un pipeline de web s
 **secuencial, concurrente y paralelo**, para medir cuándo y por qué el paralelismo acelera un sistema
 en una arquitectura multinúcleo.
 
-> **Estado:** Hito 1 (diseño). Existe la base: configuración, capa de red responsable y herramienta para
-> explorar fuentes. El pipeline (etapas, colas y los tres modos) se implementa en la semana 2.
+> **Estado:** sistema funcional de punta a punta: descubre juegos en Metacritic, consulta 4 tiendas
+> (Steam, Nintendo eShop, GOG, Best Buy), empareja títulos, guarda el historial en SQLite y genera el sitio,
+> en los tres modos y en vivo o replay. Pendiente: duración (ADR-007), validación del umbral de
+> emparejamiento, barridos de medición (después de entregar las predicciones del Hito 1).
 
 ## Enlaces
 - Repositorio: https://github.com/Emminox/web-scraping
-- Sitio público: _pendiente_
+- Sitio público: https://emminox.github.io/web-scraping/ (cuando se active GitHub Pages, ver ADR-010)
 - Tablero: _pendiente_
 - Contexto completo del proyecto: [`Contexto actual/CONTEXTO_PROYECTO.md`](Contexto%20actual/CONTEXTO_PROYECTO.md)
 - Enunciado oficial: [`Requerimientos y guías/`](Requerimientos%20y%20guías/)
@@ -30,10 +32,16 @@ radar/              Código del proyecto
   config.py         Carga y valida config.toml
   red/              Capa de red: robots.txt, límites por dominio, reintentos, almacén de capturas, métricas
   bd/               Base de datos SQLite: esquema.sql y conexión (ADR-003; explicado en docs/esquema-bd.md)
-  catalogo.py       Lee, valida y carga el catálogo de juegos en la base
+  catalogo.py       Lee, valida y carga el catálogo manual de juegos en la base
   pipeline/         Orquestador: 6 etapas con colas acotadas y los 3 modos (diseño en docs/pipeline.md)
+  fuentes/          Parsers de Metacritic, Steam, Nintendo eShop, GOG y Best Buy (ADR-004)
+  emparejamiento/   Normalización y similitud de títulos en Python puro (ADR-006)
+  persistencia.py   Etapa Persistir: único escritor de SQLite
+  sitio/            Etapa Publicar: genera el sitio estático (plantillas en sitio/estatico/)
+  ejecucion.py      Une todo: ejecución completa, reintento final de fallidos y métricas
   herramientas/     Comandos: explorar_fuente.py (spikes) y cargar_catalogo.py
-catalogo/           Catálogo de juegos en JSON: la fuente de verdad (formato en catalogo/README.md)
+catalogo/           Juegos agregados a mano en JSON (los demás los descubre la etapa 0)
+.github/workflows/  Tarea programada diaria que actualiza y publica el sitio (ADR-010)
 tests/              Pruebas automáticas (no usan internet)
 fixtures/           Páginas de ejemplo guardadas en los spikes (entradas de prueba de los parsers)
 datos/capturas/     Respuestas descargadas: caché en vivo y fuente del modo replay (no se sube a Git)
@@ -69,7 +77,22 @@ Cargar el catálogo de `catalogo/*.json` en la base y ver cuánto falta para los
 py -3.14 -m radar.herramientas.cargar_catalogo
 ```
 
-_Pendiente (semana 2): ejecutar el pipeline en modo vivo / replay y en los tres modos (secuencial, concurrente, paralelo)._
+**Ejecutar el Radar completo** (etapas 0 a 5). El modo y la fuente de datos salen de `config/config.toml` o
+de la línea de comandos:
+```bash
+py -3.14 -m radar ejecutar --modo concurrente --fuente vivo
+```
+- `--modo secuencial | concurrente | paralelo`: los tres modos del enunciado (mismos resultados).
+- `--fuente vivo`: descarga de los sitios y guarda cada respuesta en `datos/capturas/`.
+- `--fuente replay`: usa esas capturas con latencia simulada (`[replay]` en la configuración); escribe en
+  `datos/radar-replay.sqlite` y `sitio-replay/` para no mezclar datos.
+- Prueba rápida y liviana: `--plataformas pc --paginas 1 --por-pagina 5`.
+
+Ver el sitio generado en el navegador (necesita un servidor local porque carga los datos con `fetch`):
+```bash
+py -3.14 -m http.server 8765 --directory sitio
+```
+y abrir http://localhost:8765. Para regenerar solo el sitio desde la base: `py -3.14 -m radar sitio`.
 
 ## Flujo de trabajo con Git
 - `main` siempre estable; cada tarea en una rama `feat/<tema>`, `fix/<tema>` o `docs/<tema>`.

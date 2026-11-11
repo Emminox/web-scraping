@@ -81,11 +81,12 @@ por un pool fijo por etapa. El máximo de trabajo simultáneo es siempre `worker
 8. **Se mide trabajo, no espera.** El tiempo bloqueado en un `put()` (cola llena) no cuenta como trabajo
    de la etapa. Cada etapa reporta su tiempo ocupado (suma de todos sus workers) y su ventana (reloj).
 
-## Pendiente (próximos pasos)
+## Estado de las etapas
 
-- Etapas reales: descubrimiento desde el listado, descarga con `ClienteHttp`, parsers por fuente,
-  emparejamiento con similitud propia, persistencia en SQLite y generación del sitio.
-- Cola de fallidos **reintentada al final** de la ejecución (hoy se registran, aún no se reintentan).
-- Guardar las estadísticas por etapa en las tablas `ejecucion_*` para el panel de métricas.
-- Paralelismo "por tienda".
+- **Hecho:** etapas reales conectadas en `radar/ejecucion.py` (Metacritic → Steam/Nintendo/GOG/Best Buy →
+  parsers → emparejamiento → SQLite → sitio), cola de fallidos **reintentada al final** en modo secuencial
+  (las fuentes que funcionaron salen de la caché) y estadísticas por etapa guardadas en `ejecucion_etapa`.
+- **Unidad de trabajo:** cada juego entra una vez por plataforma (`clave@plataforma`); así consulta solo las
+  tiendas de esa plataforma y empareja solo contra sus productos.
+- **Pendiente:** paralelismo "por tienda" (variantes de una tienda en paralelo).
 - **No medir rendimiento con este pipeline hasta entregar las predicciones del Hito 1.**
