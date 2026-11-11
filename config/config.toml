@@ -63,6 +63,8 @@ backoff_max_segundos = 30.0
 # el dominio queda en pausa todo ese tiempo y sus tareas van a la cola de fallidos. Antes del reintento final
 # se espera a que termine la pausa solo si no pasa de este tope; si pasa, ese dominio queda para la próxima corrida.
 pausa_maxima_segundos = 1800.0
+# Un 429 sin Retry-After pausa el dominio este tiempo (antes se reintentaba a los pocos segundos).
+pausa_429_segundos = 900.0
 
 # Límites por dominio que se aplican cuando el dominio no tiene una regla propia abajo.
 #   max_conexiones           -> solicitudes simultáneas permitidas al mismo dominio (semáforo)

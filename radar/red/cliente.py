@@ -242,6 +242,10 @@ class ClienteHttp:
                     # Sin tope: la pausa dura lo que pidió el sitio aunque supere ``pausa_maxima_segundos`` (ese
                     # tope solo decide si el reintento final la espera o se rinde con ese dominio).
                     pedida = leer_retry_after(respuesta.cabeceras, float("inf"))
+                    if pedida is None and respuesta.estado == 429:
+                        # 429 sin Retry-After: el sitio pidió parar pero no dijo cuánto. Se pausa un tiempo fijo en vez
+                        # de reintentar a los pocos segundos (un 503 sin Retry-After sí usa el backoff normal).
+                        pedida = red.pausa_429_segundos
                     if pedida is not None and pedida > red.backoff_max_segundos:
                         # El sitio pidió una espera larga (CheapShark: ~16 min). Reintentar antes la renueva, y
                         # dormir aquí dejaría este hilo de descarga parado todo ese rato sin atender otros sitios.

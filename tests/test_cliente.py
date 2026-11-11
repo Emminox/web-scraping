@@ -128,6 +128,22 @@ class PruebasCliente(unittest.TestCase):
         self.assertEqual(cliente.obtener(otra).estado, 200)
         self.assertEqual(cliente.metricas.instantanea()["tienda.ejemplo.com"]["pausas"], 1)
 
+    def test_429_sin_retry_after_tambien_pausa(self):
+        # CheapShark pasó a responder 429 sin Retry-After: con el backoff normal se reintentaba cada pocos segundos.
+        self.transporte.programar(URL, respuesta(URL, 429))
+        cliente = self.crear_cliente()
+        with self.assertRaises(DominioEnPausa):
+            cliente.obtener(URL)
+        self.assertEqual(self.esperas, [])
+        self.assertEqual(self.transporte.llamadas.count(URL), 1)  # Una sola solicitud, sin reintentos.
+        self.assertEqual(round(cliente.pausas_pendientes()["tienda.ejemplo.com"]), 900)
+
+    def test_503_sin_retry_after_usa_el_backoff_normal(self):
+        self.transporte.programar(URL, respuesta(URL, 503), respuesta(URL, 200))
+        cliente = self.crear_cliente()
+        self.assertEqual(cliente.obtener(URL).estado, 200)
+        self.assertEqual(cliente.pausas_pendientes(), {})
+
     def test_retry_after_corto_sigue_siendo_un_reintento_normal(self):
         self.transporte.programar(URL, respuesta(URL, 503, **{"Retry-After": "5"}), respuesta(URL, 200))
         cliente = self.crear_cliente()

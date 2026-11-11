@@ -64,6 +64,9 @@ class ConfigRed:
     # este tope. Al final de la ejecución se espera a que terminen las pausas (si no pasan de este tope) antes
     # del reintento de la cola de fallidos.
     pausa_maxima_segundos: float = 1800.0
+    # Un 429 ("demasiadas solicitudes") SIN Retry-After también pausa el dominio, este tiempo. Reintentar con el
+    # backoff normal (segundos) solo insiste con un sitio que ya pidió parar (pasó con CheapShark).
+    pausa_429_segundos: float = 900.0
 
     def limite_para(self, dominio: str) -> LimiteDominio:
         """Devuelve el límite que corresponde a ``dominio`` (el específico o el de por defecto)."""
@@ -277,6 +280,7 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
         ),
         dominios=dominios,
         pausa_maxima_segundos=_numero_positivo(red.get("pausa_maxima_segundos", 1800.0), "red.pausa_maxima_segundos"),
+        pausa_429_segundos=_numero_positivo(red.get("pausa_429_segundos", 900.0), "red.pausa_429_segundos"),
     )
     if not config_red.user_agent:
         raise ErrorConfiguracion("'red.user_agent' no puede estar vacío: debe nombrar el proyecto.")
