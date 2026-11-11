@@ -248,28 +248,81 @@ function svg(etiqueta, atributos = {}, texto = null) {
   return nodo;
 }
 
-/** series: [{nombre, puntos: [[x, y], ...]}]. formatoY / formatoX convierten los valores en etiquetas. */
-function graficoLineas(series, { formatoX = String, formatoY = String, ancho = 640, alto = 240 } = {}) {
+/**
+ * Marcas "redondas" para un eje: entre min y max, unas `cantidad` marcas con paso 1, 2, 2,5 o 5 × 10^k
+ * (p. ej. 20, 30, 40, 50 en vez de 24,99 y 52,99). El rango final se amplía hasta la marca redonda más cercana,
+ * así los puntos nunca quedan pegados al borde.
+ */
+function marcasRedondas(min, max, cantidad = 5) {
+  if (min === max) { const margen = Math.abs(min) * 0.1 || 1; min -= margen; max += margen; }
+  const crudo = (max - min) / (cantidad - 1);
+  const potencia = 10 ** Math.floor(Math.log10(crudo));
+  const paso = [1, 2, 2.5, 5, 10].map((m) => m * potencia).find((p) => p >= crudo);
+  const marcas = [];
+  for (let v = Math.floor(min / paso) * paso; v <= Math.ceil(max / paso) * paso + paso / 1e6; v += paso) {
+    marcas.push(Number(v.toFixed(10)));
+  }
+  return marcas;
+}
+
+/**
+ * Gráfico de líneas en SVG.
+ * series: [{nombre, puntos: [[x, y], ...]}].
+ * - escalonado: el valor se mantiene hasta el siguiente punto (así se comportan los precios: un precio dura hasta
+ *   que cambia). Con líneas rectas parecería que el precio bajó "poco a poco" entre dos días.
+ * - escalaX: "lineal" o "log2" (para workers 1, 2, 4… 64: con escala lineal se amontonan a la izquierda).
+ * Cada punto tiene un <title>: al pasar el mouse se ve la serie, el valor de x y el de y.
+ */
+function graficoLineas(series, { formatoX = String, formatoY = String, escalonado = false, escalaX = "lineal",
+                                 ancho = 640, alto = 260 } = {}) {
   const todos = series.flatMap((s) => s.puntos);
   const contenedor = el("div");
   if (todos.length === 0) return contenedor;
-  const xs = todos.map((p) => p[0]), ys = todos.map((p) => p[1]);
-  let [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const fx = escalaX === "log2" ? (x) => Math.log2(x) : (x) => x;
+  const xsUnicos = [...new Set(todos.map((p) => p[0]))].sort((a, b) => a - b);
+  const marcasY = marcasRedondas(Math.min(...todos.map((p) => p[1])), Math.max(...todos.map((p) => p[1])));
+  const [y0, y1] = [marcasY[0], marcasY[marcasY.length - 1]];
+  let [x0, x1] = [fx(xsUnicos[0]), fx(xsUnicos[xsUnicos.length - 1])];
   if (x0 === x1) { x0 -= 1; x1 += 1; }
-  if (y0 === y1) { y0 -= 1; y1 += 1; }
-  const m = { izq: 60, der: 10, arr: 10, aba: 30 };
-  const X = (x) => m.izq + ((x - x0) / (x1 - x0)) * (ancho - m.izq - m.der);
+  const m = { izq: 70, der: 20, arr: 14, aba: 38 };
+  const X = (x) => m.izq + ((fx(x) - x0) / (x1 - x0)) * (ancho - m.izq - m.der);
   const Y = (y) => alto - m.aba - ((y - y0) / (y1 - y0)) * (alto - m.arr - m.aba);
   const lienzo = svg("svg", { viewBox: `0 0 ${ancho} ${alto}`, class: "grafico", role: "img" });
-  lienzo.append(svg("line", { x1: m.izq, y1: alto - m.aba, x2: ancho - m.der, y2: alto - m.aba, stroke: "currentColor", "stroke-opacity": ".3" }));
-  lienzo.append(svg("text", { x: 4, y: Y(y1) + 4 }, formatoY(y1)), svg("text", { x: 4, y: Y(y0) + 4 }, formatoY(y0)));
-  lienzo.append(svg("text", { x: m.izq, y: alto - 8 }, formatoX(x0)), svg("text", { x: ancho - m.der - 90, y: alto - 8 }, formatoX(x1)));
+
+  // Eje Y: líneas guía horizontales con su valor.
+  for (const marca of marcasY) {
+    lienzo.append(
+      svg("line", { x1: m.izq, x2: ancho - m.der, y1: Y(marca), y2: Y(marca), stroke: "currentColor",
+                    "stroke-opacity": marca === y0 ? ".4" : ".12" }),
+      svg("text", { x: m.izq - 8, y: Y(marca) + 4, "text-anchor": "end" }, formatoY(marca)));
+  }
+  // Eje X: una marca por cada valor con datos (como máximo ~7, repartidas para que no se encimen).
+  const cada = Math.ceil(xsUnicos.length / 7);
+  xsUnicos.forEach((x, i) => {
+    if (i % cada !== 0 && i !== xsUnicos.length - 1) return;
+    lienzo.append(
+      svg("line", { x1: X(x), x2: X(x), y1: alto - m.aba, y2: alto - m.aba + 5, stroke: "currentColor", "stroke-opacity": ".4" }),
+      svg("text", { x: X(x), y: alto - m.aba + 20, "text-anchor": "middle" }, formatoX(x)));
+  });
+
   const leyenda = el("div", { class: "leyenda" });
+  const xFinal = xsUnicos[xsUnicos.length - 1];
   series.forEach((serie, i) => {
     const color = COLORES[i % COLORES.length];
-    const puntos = serie.puntos.map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
-    lienzo.append(svg("polyline", { points: puntos, fill: "none", stroke: color, "stroke-width": 2 }));
-    for (const [x, y] of serie.puntos) lienzo.append(svg("circle", { cx: X(x), cy: Y(y), r: 3, fill: color }));
+    const puntos = [...serie.puntos].sort((a, b) => a[0] - b[0]);
+    let trazo = "";
+    puntos.forEach(([x, y], k) => {
+      if (k === 0) trazo += `M${X(x).toFixed(1)},${Y(y).toFixed(1)}`;
+      else trazo += escalonado ? `H${X(x).toFixed(1)}V${Y(y).toFixed(1)}` : `L${X(x).toFixed(1)},${Y(y).toFixed(1)}`;
+    });
+    // Escalonado: el último precio conocido sigue vigente hasta el último día del gráfico.
+    if (escalonado && puntos.length && puntos[puntos.length - 1][0] !== xFinal) trazo += `H${X(xFinal).toFixed(1)}`;
+    lienzo.append(svg("path", { d: trazo, fill: "none", stroke: color, "stroke-width": 2.5, "stroke-linejoin": "round" }));
+    for (const [x, y] of puntos) {
+      const punto = svg("circle", { cx: X(x), cy: Y(y), r: 4.5, fill: color });
+      punto.append(svg("title", {}, `${serie.nombre}\n${formatoX(x)}: ${formatoY(y)}`));
+      lienzo.append(punto);
+    }
     leyenda.append(el("span", { style: `color:${color}`, text: "● " + serie.nombre }));
   });
   contenedor.append(lienzo, leyenda);
@@ -323,7 +376,18 @@ async function paginaDetalle() {
   const calificaciones = tabla(["Fuente", "Plataforma", "Puntaje", "Reseñas", "Obtenido"],
     juego.calificaciones.map((c) => [c.fuente, c.plataforma || "—", `${c.puntaje} / ${c.escala}`, c.resenas ?? "—", fecha(c.obtenido_en)]), [2, 3]);
 
-  const series = juego.historial.map((h) => ({ nombre: h.tienda, puntos: h.puntos.map(([f, c]) => [Date.parse(f), c]) }));
+  // Un punto por tienda y por día ("AAAA-MM-DD", día UTC). Date.parse lo interpreta como medianoche UTC, por eso
+  // la etiqueta también se formatea en UTC (si no, en Costa Rica mostraría el día anterior).
+  const series = juego.historial.map((h) => ({ nombre: h.tienda, puntos: h.puntos.map(([dia, c]) => [Date.parse(dia), c]) }));
+  const dias = new Set(series.flatMap((s) => s.puntos.map((p) => p[0])));
+  const diaCorto = (x) => new Date(x).toLocaleDateString("es-CR", { timeZone: "UTC", day: "numeric", month: "short" });
+  // Con un solo día no hay tendencia que mostrar: un gráfico ahí solo confundiría (puntos sueltos sin líneas).
+  const historial = dias.size >= 2
+    ? graficoLineas(series, { formatoX: diaCorto, formatoY: precio, escalonado: true })
+    : el("p", { class: "nota", text: dias.size === 1
+        ? `El historial se está construyendo: por ahora hay precios de un solo día (${diaCorto([...dias][0])}). `
+          + "El sitio guarda los precios de cada actualización diaria; el gráfico aparecerá cuando haya al menos dos días."
+        : "Sin historial de precios." });
   contenido.replaceChildren(
     el("div", { class: "detalle" },
       el("div", { class: "portada" }, portada),
@@ -331,8 +395,7 @@ async function paginaDetalle() {
         el("h2", { text: juego.titulo }),
         el("p", { class: "nota", text: `Tipo: ${juego.tipo}` }),
         el("section", { class: "panel" }, el("h2", { text: "Precios (de menor a mayor)" }), precios),
-        el("section", { class: "panel" }, el("h2", { text: "Historial de precios por tienda" }),
-          series.length ? graficoLineas(series, { formatoX: (x) => new Date(x).toLocaleDateString("es-CR"), formatoY: precio }) : el("p", { class: "nota", text: "Sin historial." })),
+        el("section", { class: "panel" }, el("h2", { text: "Historial de precios por tienda" }), historial),
         el("section", { class: "panel" }, el("h2", { text: "Plataformas y precio de referencia (MSRP)" }), plataformas),
         el("section", { class: "panel" }, el("h2", { text: "Calificaciones" }), calificaciones),
         el("section", { class: "panel" }, el("h2", { text: "Duración (How Long To Beat)" }),
@@ -395,7 +458,8 @@ async function paginaMetricas() {
         graficoLineas([{ nombre: "S_abs", puntos: etapa.puntos.map((p) => [p.p, p.s_abs]) },
                        { nombre: "S_rel", puntos: etapa.puntos.map((p) => [p.p, p.s_rel]) },
                        { nombre: "E", puntos: etapa.puntos.map((p) => [p.p, p.eficiencia]) }],
-                      { formatoX: (x) => `${x} workers`, formatoY: (y) => y.toFixed(2) }));
+                      // Workers 1, 2, 4… 64: escala logarítmica para que no se amontonen a la izquierda.
+                      { formatoX: (x) => `${x}`, formatoY: (y) => y.toFixed(2), escalaX: "log2" }));
     }
   }
   secciones.push(mediciones);

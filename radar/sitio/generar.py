@@ -20,6 +20,7 @@ Reglas del enunciado que se aplican aquí (sección 9 y ADR-005):
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
 import shutil
@@ -92,6 +93,37 @@ def original_metacritic(url: str | None) -> str | None:
     return re.sub(r"/a/img/resize/[0-9a-f]+/", "/a/img/", url).split("?", 1)[0]
 
 
+def _copiar_estaticos(destino: Path) -> None:
+    """Copia HTML, JS y CSS; en los HTML agrega a app.js y estilos.css una huella de su contenido (``?v=...``).
+
+    Sin la huella, el navegador sigue usando la copia vieja de app.js que guardó en su caché, y un visitante no ve
+    los cambios del sitio hasta que fuerce la recarga. Con ella, si el archivo cambia, cambia su URL.
+    """
+    huellas = {
+        nombre: hashlib.sha256((ESTATICO / nombre).read_bytes()).hexdigest()[:10]
+        for nombre in ("app.js", "estilos.css")
+    }
+    for archivo in ESTATICO.iterdir():
+        if archivo.suffix != ".html":
+            shutil.copy2(archivo, destino / archivo.name)
+            continue
+        texto = archivo.read_text(encoding="utf-8")
+        texto = texto.replace('src="app.js"', f'src="app.js?v={huellas["app.js"]}"')
+        texto = texto.replace('href="estilos.css"', f'href="estilos.css?v={huellas["estilos.css"]}"')
+        (destino / archivo.name).write_text(texto, encoding="utf-8")
+
+
+def historial_por_dia(observaciones: list[tuple[str, int]]) -> list[list]:
+    """[(fecha ISO con hora, centavos), ...] ordenadas -> [["AAAA-MM-DD", centavos], ...] con el ÚLTIMO precio de cada día.
+
+    Las fechas están en UTC (como se guardan en la base), así que el "día" es el día UTC.
+    """
+    por_dia: dict[str, int] = {}
+    for fecha, centavos in observaciones:  # Vienen ordenadas por fecha: la última del día sobrescribe a las demás.
+        por_dia[fecha[:10]] = centavos
+    return [[dia, centavos] for dia, centavos in sorted(por_dia.items())]
+
+
 def _descuento(actual: int | None, regular: int | None) -> int:
     if actual is None or not regular or regular <= actual:
         return 0
@@ -101,8 +133,7 @@ def _descuento(actual: int | None, regular: int | None) -> int:
 def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path | None = None) -> dict:
     """Genera el sitio completo. Devuelve un resumen (juegos publicados, etc.)."""
     destino.mkdir(parents=True, exist_ok=True)
-    for archivo in ESTATICO.iterdir():
-        shutil.copy2(archivo, destino / archivo.name)
+    _copiar_estaticos(destino)
     generado = ahora_utc().isoformat()
 
     plataformas = {f["codigo"]: (f["nombre"], f["familia"]) for f in conexion.execute("SELECT * FROM plataforma")}
@@ -266,8 +297,12 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
                 "resenas": c["cantidad_resenas"],
                 "obtenido_en": c["obtenida_en"],
             } for c in sorted(calificaciones[juego["id"]], key=lambda c: (c["fuente"], c["plataforma_codigo"] or ""))],
-            "historial": [{"tienda": tienda_de_producto[producto], "puntos": puntos}
+            # Un punto por tienda POR DÍA (el último precio de ese día). Antes se enviaba cada observación con su
+            # hora exacta: con varias ejecuciones el mismo día, el gráfico mostraba puntos separados por minutos
+            # y sin ninguna tendencia que leer.
+            "historial": [{"tienda": tienda_de_producto[producto], "puntos": historial_por_dia(puntos)}
                           for producto, puntos in sorted(historial[juego["id"]].items())],
+            "dias_con_historial": len({fecha[:10] for fecha, _ in observaciones}),
             "duracion_nota": NOTA_DURACION,
         })
 

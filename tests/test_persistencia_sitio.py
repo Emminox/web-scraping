@@ -136,6 +136,18 @@ class PruebasSitio(BasePrueba):
             self.assertTrue((destino / archivo).exists(), archivo)
 
 
+class PruebasHistorial(unittest.TestCase):
+    def test_un_punto_por_dia_con_el_ultimo_precio(self):
+        from radar.sitio.generar import historial_por_dia
+        observaciones = [
+            ("2026-11-10T08:00:00+00:00", 2999),
+            ("2026-11-11T09:00:00+00:00", 2499),
+            ("2026-11-11T21:00:00+00:00", 1999),  # Mismo día, más tarde: este es el que cuenta.
+        ]
+        self.assertEqual(historial_por_dia(observaciones), [["2026-11-10", 2999], ["2026-11-11", 1999]])
+        self.assertEqual(historial_por_dia([]), [])
+
+
 class PruebasImagenes(unittest.TestCase):
     def test_portada_steam_desde_url_del_producto(self):
         from radar.sitio.generar import portada_steam
