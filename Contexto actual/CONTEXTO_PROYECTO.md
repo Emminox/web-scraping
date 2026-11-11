@@ -273,7 +273,10 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 | Almacenamiento de capturas replay y BD (Git LFS / Releases / BD en la nube) | Pendiente — preferida: GitHub Releases | — |
 | Asignación de roles | Pendiente | `docs/acta.md` |
 
-**Repositorio Git:** inicializado localmente (rama `main`); falta crear el remoto en GitHub e invitar al equipo.
+**Repositorio Git:** https://github.com/Emminox/web-scraping (rama `main`). Falta confirmar que el equipo
+fue invitado y que `main` está protegida (pull request con 1 aprobación).
+**Commits y PRs:** NO agregar `Co-Authored-By: Claude` ni "Generated with Claude Code" (acordado el
+2026-11-11). El uso de IA se declara en `docs/bitacora-ia.md`.
 **Estructura `docs/`:** creada con plantillas (acta, seguimiento, cambios de diseño, bitácora de IA, ADRs).
 **URL del sitio:** aún no existe. **Tablero:** aún no existe.
 

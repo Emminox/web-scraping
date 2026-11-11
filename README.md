@@ -10,6 +10,7 @@ en una arquitectura multinúcleo.
 > explorar fuentes. El pipeline (etapas, colas y los tres modos) se implementa en la semana 2.
 
 ## Enlaces
+- Repositorio: https://github.com/Emminox/web-scraping
 - Sitio público: _pendiente_
 - Tablero: _pendiente_
 - Contexto completo del proyecto: [`Contexto actual/CONTEXTO_PROYECTO.md`](Contexto%20actual/CONTEXTO_PROYECTO.md)

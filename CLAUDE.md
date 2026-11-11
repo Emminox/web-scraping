@@ -18,6 +18,9 @@ hitos, reglas, estado actual y plan). El enunciado oficial está en `Requerimien
 - Mediciones formales **solo en modo replay**.
 - Toda decisión con alternativas reales → ADR en `docs/adr/` (`/adr`). Desviaciones del diseño H1 → `docs/cambios-diseno.md`.
 - Al escribir código concurrente, explicar por qué es correcto: todos los integrantes serán interrogados en la defensa.
+- **Commits y pull requests sin atribución a Claude:** no agregar `Co-Authored-By: Claude …` ni
+  "Generated with Claude Code". El uso de IA se declara únicamente en `docs/bitacora-ia.md`.
+- Ejecutar todo con Python 3.14 (`py -3.14 …` en Windows).
 
 ## Skills del proyecto
 Definidas en `Agentes/skills/` (fuente) y activas en `.claude/skills/`. Catálogo y comandos en `Agentes/README.md`.
