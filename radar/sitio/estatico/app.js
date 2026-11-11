@@ -182,32 +182,41 @@ async function paginaResultados() {
     const tipo = $("#filtro-tipo").value, familia = $("#filtro-plataforma").value;
     const formato = $("#filtro-formato").value, tienda = $("#filtro-tienda").value;
     const soloOfertas = $("#solo-ofertas").checked;
-    const lista = datos.juegos.filter((j) =>
-      (!texto || j.titulo.toLowerCase().includes(texto)) &&
-      (!tipo || (j.tipos || [j.tipo]).includes(tipo)) &&  // Tipos de los productos con precio (ver generar.py).
-      (!familia || j.familias.includes(familia)) &&
-      (!formato || j.formatos.includes(formato)) &&
-      (!tienda || j.tiendas.includes(tienda)) &&
-      (!soloOfertas || j.en_oferta));
+    // Cada OFERTA (producto con precio) debe cumplir TODOS los filtros a la vez. Antes cada filtro se comparaba
+    // con las listas de todo el juego: "PC + Físico" aceptaba un juego de PC que solo era físico en PS5, y lo mismo
+    // pasaba con plataforma + tienda, formato + tienda, tipo y "solo en oferta".
+    const cumple = (o) =>
+      (!tipo || o.tipo === tipo) && (!familia || o.familia === familia) && (!formato || o.formato === formato) &&
+      (!tienda || o.tienda === tienda) && (!soloOfertas || o.en_oferta);
+    const lista = [];
+    for (const j of datos.juegos) {
+      if (texto && !j.titulo.toLowerCase().includes(texto)) continue;
+      const validas = j.ofertas.filter(cumple);  // Ya vienen de menor a mayor precio (generar.py).
+      if (validas.length === 0) continue;
+      // La tarjeta muestra la mejor oferta QUE CUMPLE el filtro (con "Nintendo" no se ve el precio de Steam).
+      lista.push({ juego: j, mejor: validas[0], tiendas: new Set(validas.map((o) => o.tienda)).size });
+    }
     const orden = $("#orden").value;
+    const nombre = (a, b) => a.juego.titulo.localeCompare(b.juego.titulo, "es");
     const comparar = {
-      nombre: (a, b) => a.titulo.localeCompare(b.titulo, "es"),
-      precio: (a, b) => a.precio - b.precio || a.titulo.localeCompare(b.titulo),
-      descuento: (a, b) => b.descuento - a.descuento || a.precio - b.precio,
-      calificacion: (a, b) => (b.metascore ?? -1) - (a.metascore ?? -1) || a.titulo.localeCompare(b.titulo),
+      nombre,
+      precio: (a, b) => a.mejor.precio - b.mejor.precio || nombre(a, b),
+      descuento: (a, b) => b.mejor.descuento - a.mejor.descuento || a.mejor.precio - b.mejor.precio || nombre(a, b),
+      calificacion: (a, b) => (b.juego.metascore ?? -1) - (a.juego.metascore ?? -1) || nombre(a, b),
     }[orden];
     return lista.sort(comparar);
   }
 
-  function tarjeta(juego) {
+  function tarjeta({ juego, mejor, tiendas }) {
     const portada = imagen(juego.imagenes, { alt: "", loading: "lazy" });
     const enlace = "juego.html?clave=" + encodeURIComponent(juego.clave);
-    const lineaPrecio = el("div", {}, el("span", { class: "precio", text: precio(juego.precio) }));
-    if (juego.regular && juego.regular > juego.precio) lineaPrecio.append(el("span", { class: "tachado", text: precio(juego.regular) }));
+    const lineaPrecio = el("div", {}, el("span", { class: "precio", text: precio(mejor.precio) }));
+    if (mejor.regular && mejor.regular > mejor.precio) lineaPrecio.append(el("span", { class: "tachado", text: precio(mejor.regular) }));
     const etiquetas = el("div", { class: "chips" });
-    if (juego.descuento > 0) etiquetas.append(el("span", { class: "etiqueta descuento", text: `-${juego.descuento}%` }));
-    if (juego.minimo_historico) etiquetas.append(el("span", { class: "etiqueta minimo", text: "Mínimo histórico" }));
-    if (juego.desactualizado) etiquetas.append(el("span", { class: "etiqueta viejo", text: "Precio desactualizado" }));
+    if (mejor.descuento > 0) etiquetas.append(el("span", { class: "etiqueta descuento", text: `-${mejor.descuento}%` }));
+    if (mejor.minimo_historico) etiquetas.append(el("span", { class: "etiqueta minimo", text: "Mínimo histórico" }));
+    // La marca va con el precio que se muestra; el detalle del juego marca cada tienda por separado.
+    if (mejor.desactualizado) etiquetas.append(el("span", { class: "etiqueta viejo", text: "Precio desactualizado" }));
     const plataformas = el("div", { class: "chips" }, ...juego.plataformas.map((p) => el("span", { class: "chip", text: datos.plataformas[p] || p })));
     const calificacion = [];
     if (juego.metascore !== null) calificacion.push(`Metascore ${juego.metascore}`);
@@ -218,7 +227,7 @@ async function paginaResultados() {
         el("h3", {}, el("a", { href: enlace, text: juego.titulo })),
         lineaPrecio, etiquetas, plataformas,
         el("div", { class: "nota", text: calificacion.join(" · ") || "Sin calificación" }),
-        el("div", { class: "nota", text: `Mejor precio en ${datos.tiendas[juego.tienda] || juego.tienda} · ${juego.tiendas.length} tiendas` })));
+        el("div", { class: "nota", text: `Mejor precio en ${datos.tiendas[mejor.tienda] || mejor.tienda} · ${tiendas} ${tiendas === 1 ? "tienda" : "tiendas"}` })));
   }
 
   function dibujar() {

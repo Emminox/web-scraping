@@ -296,6 +296,22 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
             "en_oferta": en_oferta(mejor),
             "minimo_historico": minimo is not None and fechas_distintas >= 2 and mejor["precio_actual_centavos"] <= minimo,
             "desactualizado": any(p["desactualizado"] for p in precios),
+            # Una entrada por producto con precio. Los filtros del sitio se aplican a CADA oferta con todas sus
+            # condiciones a la vez (plataforma, formato, tienda, tipo, en oferta): antes se comparaban contra las
+            # listas de todo el juego y "PC + Físico" mostraba un juego de PC que solo era físico en PS5.
+            "ofertas": [{
+                "familia": plataformas[p["plataforma_codigo"]][1] if p["plataforma_codigo"] in plataformas else None,
+                "plataforma": p["plataforma_codigo"],
+                "formato": p["formato"],
+                "tienda": p["tienda"],
+                "tipo": p["tipo_producto"] or "juego",
+                "precio": p["precio_actual_centavos"],
+                "regular": p["precio_regular_centavos"],
+                "descuento": _descuento(p["precio_actual_centavos"], p["precio_regular_centavos"]),
+                "en_oferta": en_oferta(p),
+                "minimo_historico": minimo is not None and fechas_distintas >= 2 and p["precio_actual_centavos"] <= minimo,
+                "desactualizado": bool(p["desactualizado"]),
+            } for p in precios],
             "metascore": round(max(metascores)) if metascores else None,
             "steam": round(steam[0]) if steam else None,
         })

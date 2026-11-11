@@ -147,6 +147,24 @@ class PruebasSitio(BasePrueba):
         [tarjeta] = json.loads((destino / "datos" / "juegos.json").read_text(encoding="utf-8"))["juegos"]
         self.assertEqual(tarjeta["tipos"], ["juego", "juego_dlc"])
 
+    def test_ofertas_por_producto_para_filtros_combinados(self):
+        # Hades en PC (Steam, digital) y en Switch (Best Buy, físico). El filtro "PC + Físico" no debe encontrarlo:
+        # para eso el sitio necesita cada oferta con su plataforma, formato y tienda juntos.
+        hades_pc, hades_switch = juego("hades", "Hades"), juego("hades", "Hades", plataforma="switch")
+        fisico = Candidato("bestbuy", "Hades - Nintendo Switch", "https://www.bestbuy.com/hades", "switch", "fisico",
+                           2999, 3499, obtenida_en=OBTENIDA)
+        self.persistir(
+            resultado(hades_pc, ("steam", [candidato("steam", "Hades", "https://store.steampowered.com/app/1/", 1249, 2499)])),
+            resultado(hades_switch, ("bestbuy", [fisico])),
+        )
+        destino = self.carpeta / "sitio"
+        generar_sitio(self.bd, destino)
+        [tarjeta] = json.loads((destino / "datos" / "juegos.json").read_text(encoding="utf-8"))["juegos"]
+        ofertas = [(o["familia"], o["formato"], o["tienda"], o["precio"], o["en_oferta"]) for o in tarjeta["ofertas"]]
+        self.assertEqual(ofertas, [("pc", "digital", "steam", 1249, True), ("nintendo", "fisico", "bestbuy", 2999, True)])
+        pc_fisico = [o for o in tarjeta["ofertas"] if o["familia"] == "pc" and o["formato"] == "fisico"]
+        self.assertEqual(pc_fisico, [])  # Antes el juego pasaba porque "pc" y "fisico" estaban en listas separadas.
+
 
 class PruebasHistorial(unittest.TestCase):
     def test_un_punto_por_dia_con_el_ultimo_precio(self):
