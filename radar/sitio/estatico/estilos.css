@@ -67,4 +67,23 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 svg.grafico { width: 100%; height: auto; }
 svg.grafico text { fill: var(--suave); font-size: 11px; }
 .leyenda span { margin-right: 12px; font-size: 13px; }
+
+/* Historial de precios (diseño inspirado en DekuDeals): área oscura propia, guías tenues, ejes discretos. */
+.grafico-historial { position: relative; margin-top: 10px; }
+.grafico-historial svg { background: #14171c; border-radius: 6px; }
+.grafico-historial .area { fill: #191d24; }
+.grafico-historial .guia { stroke: #ffffff; stroke-opacity: .08; }
+.grafico-historial .guia.fuerte { stroke-opacity: .22; }
+.grafico-historial .cursor { stroke: #ffffff; stroke-opacity: .5; stroke-dasharray: 3 3; }
+.grafico-historial text.eje { fill: #aab2c0; font-size: 12px; }
+.grafico-historial text.eje.fuerte { fill: #e7eaf0; font-weight: 700; }
+.grafico-historial .recuadro {
+  position: absolute; top: 8px; z-index: 2; pointer-events: none; min-width: 180px;
+  background: rgba(20, 23, 28, .95); color: #e7eaf0; border: 1px solid #2c3340; border-radius: 6px;
+  padding: 6px 10px; font-size: 13px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+.minimos { display: inline-block; text-align: center; margin: 4px 0 6px; }
+.minimos-titulo { font-weight: 700; border-bottom: 1px solid var(--borde); padding-bottom: 4px; margin-bottom: 6px; }
+.minimos-columnas { display: flex; gap: 36px; justify-content: center; }
+.minimos-columnas b { font-size: 18px; }
 .error { color: var(--oferta); }

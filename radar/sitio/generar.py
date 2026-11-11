@@ -124,6 +124,28 @@ def historial_por_dia(observaciones: list[tuple[str, int]]) -> list[list]:
     return [[dia, centavos] for dia, centavos in sorted(por_dia.items())]
 
 
+def minimos_por_formato(historial_juego: dict[int, list], formato_de_producto: dict[int, str],
+                        plataforma_de_producto: dict[int, str], msrp: dict[str, int | None]) -> dict[str, dict]:
+    """Precio más bajo registrado por formato: {"digital": {"precio", "fecha", "descuento"}, "fisico": {...}}.
+
+    ``descuento`` es el % respecto al MSRP de la plataforma de ese producto (0 si no hay MSRP). Ante empate de
+    precio gana la fecha más antigua (la primera vez que se alcanzó).
+    """
+    mejores: dict[str, tuple] = {}
+    for producto, observaciones in historial_juego.items():
+        formato = formato_de_producto[producto]
+        for fecha, centavos in observaciones:
+            clave = (centavos, fecha)
+            if formato not in mejores or clave < mejores[formato][0]:
+                mejores[formato] = (clave, plataforma_de_producto[producto])
+    resultado = {}
+    for formato, ((centavos, fecha), plataforma) in sorted(mejores.items()):
+        referencia = msrp.get(plataforma)
+        resultado[formato] = {"precio": centavos, "fecha": fecha[:10],
+                              "descuento": _descuento(centavos, referencia) if referencia else 0}
+    return resultado
+
+
 def _descuento(actual: int | None, regular: int | None) -> int:
     if actual is None or not regular or regular <= actual:
         return 0
@@ -154,6 +176,8 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
     # Historial completo por producto aceptado (para el gráfico y el mínimo histórico).
     historial: dict[int, dict[int, list]] = defaultdict(lambda: defaultdict(list))
     tienda_de_producto: dict[int, str] = {}
+    formato_de_producto: dict[int, str] = {}
+    plataforma_de_producto: dict[int, str] = {}
     for fila in conexion.execute(
         """
         SELECT p.juego_id, p.id AS producto_id, f.codigo AS tienda, p.formato, p.plataforma_codigo,
@@ -166,9 +190,12 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
         """
     ):
         historial[fila["juego_id"]][fila["producto_id"]].append((fila["obtenida_en"], fila["precio_actual_centavos"]))
+        formato_texto = "físico" if fila["formato"] == "fisico" else "digital"
         tienda_de_producto[fila["producto_id"]] = (
-            f'{NOMBRES_TIENDA.get(fila["tienda"], fila["tienda"])} ({plataformas.get(fila["plataforma_codigo"], ("?",))[0]}, {fila["formato"]})'
+            f'{NOMBRES_TIENDA.get(fila["tienda"], fila["tienda"])} ({plataformas.get(fila["plataforma_codigo"], ("?",))[0]}, {formato_texto})'
         )
+        formato_de_producto[fila["producto_id"]] = fila["formato"]
+        plataforma_de_producto[fila["producto_id"]] = fila["plataforma_codigo"]
 
     # Última calificación por juego, fuente y plataforma.
     calificaciones: dict[int, list] = defaultdict(list)
@@ -300,8 +327,11 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
             # Un punto por tienda POR DÍA (el último precio de ese día). Antes se enviaba cada observación con su
             # hora exacta: con varias ejecuciones el mismo día, el gráfico mostraba puntos separados por minutos
             # y sin ninguna tendencia que leer.
-            "historial": [{"tienda": tienda_de_producto[producto], "puntos": historial_por_dia(puntos)}
+            "historial": [{"tienda": tienda_de_producto[producto], "formato": formato_de_producto[producto],
+                           "puntos": historial_por_dia(puntos)}
                           for producto, puntos in sorted(historial[juego["id"]].items())],
+            # "Mínimo histórico" por formato (como el resumen de DekuDeals), con el % respecto al MSRP.
+            "minimos": minimos_por_formato(historial[juego["id"]], formato_de_producto, plataforma_de_producto, msrp),
             "dias_con_historial": len({fecha[:10] for fecha, _ in observaciones}),
             "duracion_nota": NOTA_DURACION,
         })

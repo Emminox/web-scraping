@@ -238,7 +238,10 @@ async function paginaResultados() {
 // Gráfico de líneas en SVG (historial de precios y curvas de speedup)
 // ---------------------------------------------------------------------------------------------
 
-const COLORES = ["#2457d6", "#c62828", "#1b7f3b", "#b26a00", "#7b1fa2", "#00838f"];
+// 10 colores distinguibles entre sí y legibles sobre fondo claro y oscuro. Antes eran 6: con más tiendas en un
+// mismo gráfico, dos líneas compartían color y no se podían diferenciar.
+const COLORES = ["#3b6fe0", "#d64545", "#2e9e5b", "#e08a00", "#9b59d0", "#0fa3b1",
+                 "#e05aa8", "#8a9a2b", "#7f8c8d", "#c1662f"];
 const SVG = "http://www.w3.org/2000/svg";
 
 function svg(etiqueta, atributos = {}, texto = null) {
@@ -329,6 +332,123 @@ function graficoLineas(series, { formatoX = String, formatoY = String, escalonad
   return contenedor;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Gráfico del historial de precios (diseño inspirado en DekuDeals)
+// ---------------------------------------------------------------------------------------------
+
+const MESES_INICIAL = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+const DIA_MS = 86400000;
+
+/**
+ * Historial de precios con eje de TIEMPO continuo.
+ * - Líneas escalonadas finas y sin puntos: un precio vale hasta que cambia; cada línea se extiende hasta el último
+ *   día del gráfico (su último precio sigue vigente).
+ * - Eje X: una línea guía por mes con su inicial y el año en enero; si el período dura menos de ~2 meses, una
+ *   guía por semana con el día.
+ * - Eje Y: valores redondos escritos dentro del área, sobre líneas guía tenues.
+ * - Al pasar el mouse: línea vertical y recuadro con el precio de cada tienda ese día (de menor a mayor).
+ * series: [{nombre, puntos: [[milisegundos UTC del día, centavos], ...]}]
+ */
+function graficoHistorial(series, { ancho = 720, alto = 300 } = {}) {
+  const todos = series.flatMap((s) => s.puntos);
+  const contenedor = el("div", { class: "grafico-historial" });
+  if (todos.length === 0) return contenedor;
+  const tiempos = todos.map((p) => p[0]);
+  const t0 = Math.min(...tiempos), t1 = Math.max(Math.max(...tiempos), t0 + DIA_MS);
+  const marcasY = marcasRedondas(Math.min(...todos.map((p) => p[1])), Math.max(...todos.map((p) => p[1])));
+  const [y0, y1] = [marcasY[0], marcasY[marcasY.length - 1]];
+  const m = { izq: 6, der: 6, arr: 10, aba: 30 };
+  const X = (t) => m.izq + ((t - t0) / (t1 - t0)) * (ancho - m.izq - m.der);
+  const Y = (v) => alto - m.aba - ((v - y0) / (y1 - y0)) * (alto - m.arr - m.aba);
+  const lienzo = svg("svg", { viewBox: `0 0 ${ancho} ${alto}`, class: "grafico", role: "img",
+                               "aria-label": "Historial de precios por tienda" });
+  lienzo.append(svg("rect", { x: m.izq, y: m.arr, width: ancho - m.izq - m.der, height: alto - m.arr - m.aba, class: "area" }));
+
+  // Guías verticales: por mes (inicial del mes; el año en enero) o, en períodos cortos, por semana.
+  const fechaUTC = (t) => new Date(t);
+  const guias = [];
+  if (t1 - t0 > 60 * DIA_MS) {
+    const d = fechaUTC(t0);
+    let cursor = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+    while (cursor <= t1) {
+      const f = fechaUTC(cursor);
+      guias.push({ t: cursor, texto: f.getUTCMonth() === 0 ? String(f.getUTCFullYear()) : MESES_INICIAL[f.getUTCMonth()],
+                   fuerte: f.getUTCMonth() === 0 });
+      cursor = Date.UTC(f.getUTCFullYear(), f.getUTCMonth() + 1, 1);
+    }
+  } else {
+    for (let t = t0; t <= t1; t += 7 * DIA_MS) {
+      guias.push({ t, texto: fechaUTC(t).toLocaleDateString("es-CR", { timeZone: "UTC", day: "numeric", month: "short" }) });
+    }
+  }
+  for (const g of guias) {
+    lienzo.append(
+      svg("line", { x1: X(g.t), x2: X(g.t), y1: m.arr, y2: alto - m.aba, class: g.fuerte ? "guia fuerte" : "guia" }),
+      svg("text", { x: X(g.t), y: alto - 10, "text-anchor": "middle", class: g.fuerte ? "eje fuerte" : "eje" }, g.texto));
+  }
+  // Guías horizontales con el valor escrito dentro del área, arriba de la línea.
+  for (const v of marcasY) {
+    lienzo.append(svg("line", { x1: m.izq, x2: ancho - m.der, y1: Y(v), y2: Y(v), class: "guia" }));
+    // El valor va arriba de su línea; el de la línea superior, debajo (si no, quedaría cortado por el borde).
+    if (v !== y0) lienzo.append(svg("text", { x: m.izq + 6, y: v === y1 ? Y(v) + 15 : Y(v) - 5, class: "eje" }, "$" + Math.round(v / 100)));
+  }
+
+  // Líneas escalonadas (finas, sin puntos), extendidas hasta el último día.
+  const ordenadas = series.map((s, i) => ({ ...s, color: COLORES[i % COLORES.length],
+                                            puntos: [...s.puntos].sort((a, b) => a[0] - b[0]) }));
+  for (const s of ordenadas) {
+    let trazo = "";
+    s.puntos.forEach(([t, v], k) => {
+      trazo += k === 0 ? `M${X(t).toFixed(1)},${Y(v).toFixed(1)}` : `H${X(t).toFixed(1)}V${Y(v).toFixed(1)}`;
+    });
+    trazo += `H${X(t1).toFixed(1)}`;
+    lienzo.append(svg("path", { d: trazo, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "miter" }));
+  }
+
+  // Interacción: línea vertical + recuadro con el precio de cada tienda ese día.
+  const cursor = svg("line", { y1: m.arr, y2: alto - m.aba, class: "cursor", visibility: "hidden" });
+  const capa = svg("rect", { x: m.izq, y: m.arr, width: ancho - m.izq - m.der, height: alto - m.arr - m.aba, fill: "transparent" });
+  lienzo.append(cursor, capa);
+  const recuadro = el("div", { class: "recuadro", hidden: "" });
+  const precioEn = (s, t) => { let v = null; for (const [tp, vp] of s.puntos) { if (tp <= t) v = vp; else break; } return v; };
+  capa.addEventListener("mousemove", (evento) => {
+    const caja = lienzo.getBoundingClientRect();
+    const x = ((evento.clientX - caja.left) / caja.width) * ancho;
+    const t = Math.round((t0 + ((x - m.izq) / (ancho - m.izq - m.der)) * (t1 - t0)) / DIA_MS) * DIA_MS;
+    cursor.setAttribute("x1", X(t)); cursor.setAttribute("x2", X(t)); cursor.setAttribute("visibility", "visible");
+    const filas = ordenadas.map((s) => ({ s, v: precioEn(s, t) })).filter((f) => f.v !== null).sort((a, b) => a.v - b.v);
+    recuadro.replaceChildren(
+      el("b", { text: fechaUTC(t).toLocaleDateString("es-CR", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }) }),
+      ...filas.map((f) => el("div", {}, el("span", { style: `color:${f.s.color}`, text: "● " }),
+                                       document.createTextNode(`${precio(f.v)} · ${f.s.nombre}`))));
+    recuadro.hidden = false;
+    const izquierda = evento.clientX - contenedor.getBoundingClientRect().left;
+    recuadro.style.left = `${Math.min(izquierda + 12, contenedor.clientWidth - recuadro.offsetWidth - 4)}px`;
+  });
+  capa.addEventListener("mouseleave", () => { recuadro.hidden = true; cursor.setAttribute("visibility", "hidden"); });
+
+  const leyenda = el("div", { class: "leyenda" },
+    ...ordenadas.map((s) => el("span", { style: `color:${s.color}`, text: "● " + s.nombre })));
+  contenedor.append(lienzo, recuadro, leyenda);
+  return contenedor;
+}
+
+/** Resumen "Mínimo histórico" por formato, como encabezado del historial. */
+function resumenMinimos(minimos) {
+  const formatos = [["digital", "Digital"], ["fisico", "Físico"]].filter(([clave]) => minimos?.[clave]);
+  if (formatos.length === 0) return null;
+  return el("div", { class: "minimos" },
+    el("div", { class: "minimos-titulo", text: "Mínimo histórico" }),
+    el("div", { class: "minimos-columnas" },
+      ...formatos.map(([clave, nombre]) => {
+        const dato = minimos[clave];
+        return el("div", {},
+          el("div", { class: "nota", text: nombre }),
+          el("div", {}, el("b", { text: precio(dato.precio) }),
+             dato.descuento > 0 ? el("span", { class: "nota", text: ` (-${dato.descuento}%)` }) : null));
+      })));
+}
+
 function tabla(encabezados, filas, numericas = []) {
   return el("table", {},
     el("thead", {}, el("tr", {}, ...encabezados.map((h, i) => el("th", { class: numericas.includes(i) ? "num" : null, text: h })))),
@@ -383,7 +503,7 @@ async function paginaDetalle() {
   const diaCorto = (x) => new Date(x).toLocaleDateString("es-CR", { timeZone: "UTC", day: "numeric", month: "short" });
   // Con un solo día no hay tendencia que mostrar: un gráfico ahí solo confundiría (puntos sueltos sin líneas).
   const historial = dias.size >= 2
-    ? graficoLineas(series, { formatoX: diaCorto, formatoY: precio, escalonado: true })
+    ? graficoHistorial(series)
     : el("p", { class: "nota", text: dias.size === 1
         ? `El historial se está construyendo: por ahora hay precios de un solo día (${diaCorto([...dias][0])}). `
           + "El sitio guarda los precios de cada actualización diaria; el gráfico aparecerá cuando haya al menos dos días."
@@ -395,7 +515,7 @@ async function paginaDetalle() {
         el("h2", { text: juego.titulo }),
         el("p", { class: "nota", text: `Tipo: ${juego.tipo}` }),
         el("section", { class: "panel" }, el("h2", { text: "Precios (de menor a mayor)" }), precios),
-        el("section", { class: "panel" }, el("h2", { text: "Historial de precios por tienda" }), historial),
+        el("section", { class: "panel" }, el("h2", { text: "Historial de precios" }), resumenMinimos(juego.minimos), historial),
         el("section", { class: "panel" }, el("h2", { text: "Plataformas y precio de referencia (MSRP)" }), plataformas),
         el("section", { class: "panel" }, el("h2", { text: "Calificaciones" }), calificaciones),
         el("section", { class: "panel" }, el("h2", { text: "Duración (How Long To Beat)" }),

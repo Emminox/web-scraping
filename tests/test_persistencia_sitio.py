@@ -147,6 +147,19 @@ class PruebasHistorial(unittest.TestCase):
         self.assertEqual(historial_por_dia(observaciones), [["2026-11-10", 2999], ["2026-11-11", 1999]])
         self.assertEqual(historial_por_dia([]), [])
 
+    def test_minimos_por_formato(self):
+        from radar.sitio.generar import minimos_por_formato
+        historial = {
+            1: [("2026-10-01T10:00:00+00:00", 1999), ("2026-10-10T10:00:00+00:00", 399)],   # digital, switch
+            2: [("2026-10-05T10:00:00+00:00", 3599), ("2026-10-20T10:00:00+00:00", 1799)],  # físico, switch
+            3: [("2026-10-03T10:00:00+00:00", 399)],                                       # digital, pc (empate)
+        }
+        resultado = minimos_por_formato(historial, {1: "digital", 2: "fisico", 3: "digital"},
+                                        {1: "switch", 2: "switch", 3: "pc"}, {"switch": 1999, "pc": None})
+        self.assertEqual(resultado["fisico"], {"precio": 1799, "fecha": "2026-10-20", "descuento": 10})
+        # Empate a $3.99: gana el primero en alcanzarlo (3 de octubre, PC, sin MSRP -> 0 %).
+        self.assertEqual(resultado["digital"], {"precio": 399, "fecha": "2026-10-03", "descuento": 0})
+
 
 class PruebasImagenes(unittest.TestCase):
     def test_portada_steam_desde_url_del_producto(self):
