@@ -44,7 +44,9 @@ NOMBRES_TIENDA = {
 NOMBRES_FAMILIA = {"playstation": "PlayStation", "nintendo": "Nintendo", "xbox": "Xbox", "pc": "PC"}
 NOTA_DURACION = ("No disponible: los términos de uso de How Long To Beat prohíben extraer sus datos con "
                  "programas automáticos. Ver ADR-004 y ADR-007 (respaldo con IGDB pendiente de credenciales).")
-CLAVE_VALIDA = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+# Solo minúsculas, dígitos y guiones (la clave es parte de una ruta: nada de puntos ni barras). Se permiten guiones
+# seguidos o al final porque Metacritic los usa ("guilty-gear-strive-" para "Guilty Gear -Strive-").
+CLAVE_VALIDA = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 def _escribir_json(ruta: Path, datos: object) -> None:

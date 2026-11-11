@@ -42,5 +42,10 @@ Revisión de los juegos con una sola tienda (1010 juegos, 432 con una sola):
 - GOG vende muchos clásicos como 'pack' (el juego y sus extras). Si el nombre es idéntico (similitud ≥ 0,99) y no
   hay otra duda, se acepta como "juego + contenido"; un paquete de varios juegos tiene otro nombre y no pasa.
 
+## Cambio 3 (2026-11-11)
+Marcas de formato de Best Buy y Nintendo que no son parte del título se tratan como neutras: prefijo "NSW -",
+"(LRG)" (Limited Run Games), "(Code in Box)" y "Physical Edition". "Premium Physical Edition" sigue dudosa
+("premium" implica contenido extra).
+
 ## Estado
 Aceptada (el umbral se revisará con el conjunto de validación).

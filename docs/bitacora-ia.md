@@ -47,3 +47,26 @@ Recordatorio: las predicciones de rendimiento del Hito 1 se hacen **sin IA**.
   marca como **[ERROR REAL]** (esa entrada debe describir un error que viva el equipo).
 - **Se aceptó / se modificó y por qué:** _(completar por el equipo)_
 - **Cómo se verificó:** `py -3.14 -m unittest` (102 pruebas, incluida una de 4 hilos pidiendo la misma URL).
+
+### 2026-11-11 (tarde) · Emminox · Cobertura de 500 juegos, CheapShark y mejoras del sitio
+- **Herramienta:** Claude Code (Claude Opus 5.5).
+- **Se pidió:** llegar a 500 juegos publicados; corregir el filtrado combinado; recordar los filtros; fuente
+  Consolas y sin emojis; modo claro; encabezado y pie redondeados; precios en colones y euros.
+- **Se obtuvo:**
+  - Emparejamiento: se quitan etiquetas entre corchetes ("[Digital]"), el año entre paréntesis y marcas de
+    formato de Best Buy ("NSW -", "(LRG)", "(Code in Box)", "Physical Edition"); paquetes de GOG con el mismo
+    nombre se aceptan como juego + contenido (ADR-006). De 226 a ~500 juegos publicados.
+  - Red: un `Retry-After` largo, o un 429 sin `Retry-After`, pausa el dominio en vez de reintentar; 429 en
+    robots.txt es temporal; CheapShark a 1 solicitud cada 6 s (ADR-011).
+  - Sitio: filtros por oferta (plataforma + formato + tienda + tipo a la vez), filtros en la URL y en el
+    navegador, tema claro/oscuro, selector de moneda global y por juego con tipo de cambio diario (ADR-012).
+- **Defectos introducidos por la IA y detectados después (corregidos):**
+  1. El cliente recortaba el `Retry-After` de CheapShark (~1 h) a 30 s y reintentaba: el bloqueo se renovaba y
+     los hilos de descarga quedaban dormidos. Lo detectó la IA al ver que CheapShark no avanzaba.
+  2. Con 429 sin `Retry-After` se reintentaba cada pocos segundos (583 fallos en una corrida). Se diagnosticó
+     inspeccionando el proceso en marcha (`sys.remote_exec` de Python 3.14) y se pausó el dominio en caliente.
+  3. Los filtros del sitio daban falsos positivos ("PC + Físico") — lo detectó el usuario.
+  Ninguno se marca como **[ERROR REAL]** (esa entrada debe describir un error que viva el equipo).
+- **Se aceptó / se modificó y por qué:** _(completar por el equipo)_
+- **Cómo se verificó:** `py -3.14 -m unittest` (113 pruebas), 2400 combinaciones de filtros comparadas en el
+  navegador contra un cálculo independiente, corridas en vivo #9 y #10.

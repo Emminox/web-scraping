@@ -46,6 +46,13 @@ class PruebasNormalizar(unittest.TestCase):
         self.assertEqual(normalizar(bestbuy).texto, normalizar("Death's Door").texto)
         self.assertEqual(normalizar("Tetris Effect: Connected - Nintendo Switch [Digital]").texto, "tetris effect connected")
 
+    def test_marcas_de_formato_de_best_buy(self):
+        self.assertEqual(normalizar("NSW - AZURE STRIKER GUNVOLT 3 (LRG) - Nintendo Switch").texto, "azure striker gunvolt 3")
+        caja = normalizar("Mario + Rabbids Kingdom Battle (Code in Box) - Nintendo Switch – OLED Model, Nintendo Switch")
+        self.assertEqual(caja.texto, normalizar("Mario + Rabbids: Kingdom Battle").texto)
+        self.assertEqual(caja.ediciones, frozenset())  # Neutra: no es otra edición.
+        self.assertEqual(normalizar("Ring Fit Adventure Physical Edition").texto, "ring fit adventure")
+
     def test_anio_entre_parentesis(self):
         # Metacritic distingue juegos homónimos con el año; las tiendas no lo escriben.
         self.assertEqual(normalizar("Unreal Tournament (1999)").texto, "unreal tournament")

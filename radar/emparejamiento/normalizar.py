@@ -20,6 +20,8 @@ FRASES_PLATAFORMA = sorted(
         "oled model", "nintendo switch", "switch 2 edition", "playstation 5 pro", "playstation 5",
         "playstation 4", "playstation vr2", "ps5 pro", "ps5", "ps4",
         "xbox series x s", "xbox series x", "xbox series", "xbox one", "windows", "pc", "steam",
+        # Best Buy antepone "NSW - " a algunos juegos de Switch ("NSW - AZURE STRIKER GUNVOLT 3 (LRG)").
+        "nsw",
     ],
     key=len,
     reverse=True,
@@ -33,12 +35,14 @@ FRASES_EDICION = sorted(
         "complete edition", "ultimate edition", "gold edition", "premium edition", "special edition",
         "collectors edition", "launch edition", "standard edition", "enhanced edition", "enhanced", "edition",
         "remastered", "remaster", "director s cut", "directors cut",
+        # Marcas de formato físico de Best Buy/Nintendo: el mismo juego en caja ("LRG" = Limited Run Games).
+        "physical edition", "code in box", "lrg",
     ],
     key=len,
     reverse=True,
 )
 # Ediciones que NO cambian el producto: no hacen que el caso sea dudoso.
-EDICIONES_NEUTRAS = {"standard edition", "edition"}
+EDICIONES_NEUTRAS = {"standard edition", "edition", "physical edition", "code in box", "lrg"}
 
 # Palabras que indican que el producto no es el juego base.
 PALABRAS_DLC = {
