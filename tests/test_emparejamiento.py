@@ -125,5 +125,16 @@ class PruebasEmparejar(unittest.TestCase):
         pickle.dumps(emparejar_juego)  # La función también (está a nivel de módulo).
 
 
+class PruebasValidacion(unittest.TestCase):
+    def test_metricas_por_umbral(self):
+        from radar.herramientas.validar_emparejamiento import evaluar
+        pares = [("Hades", "HADES™", True), ("Hades", "Hades II", False),
+                 ("Zelda Breath of the Wild", "The Legend of Zelda: Breath of the Wild", True)]
+        resultados = {r["umbral"]: r for r in evaluar(pares)}
+        r = resultados[0.88]
+        self.assertEqual((r["fp"], r["precision"]), (0, 1.0))  # "Hades II" no pasa el umbral.
+        self.assertEqual(r["vp"] + r["fn"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

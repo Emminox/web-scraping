@@ -136,9 +136,13 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
     """Arma la ``DefinicionPipeline`` con las fuentes reales: QUÉ hace cada etapa."""
 
     def paginas() -> list[tuple]:
+        # Orden INTERCALADO (página 1 de cada plataforma, luego la 2...). Si se recorrieran primero todas las
+        # páginas de consola, sus tareas de Best Buy (el dominio más lento) llenarían la cola acotada de
+        # tareas y los juegos de PC no entrarían al pipeline: Steam y GOG quedarían ociosos (bloqueo por
+        # cabeza de cola, observado en la primera ejecución completa). El orden no cambia los resultados.
         lista = [("metacritic", plataforma, numero)
-                 for plataforma in opciones.plataformas
-                 for numero in range(1, opciones.paginas_por_plataforma + 1)]
+                 for numero in range(1, opciones.paginas_por_plataforma + 1)
+                 for plataforma in opciones.plataformas]
         return lista + [("catalogo", None, 0)]
 
     def descubrir_pagina(pagina: tuple) -> list[Juego]:

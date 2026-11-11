@@ -88,5 +88,11 @@ por un pool fijo por etapa. El máximo de trabajo simultáneo es siempre `worker
   (las fuentes que funcionaron salen de la caché) y estadísticas por etapa guardadas en `ejecucion_etapa`.
 - **Unidad de trabajo:** cada juego entra una vez por plataforma (`clave@plataforma`); así consulta solo las
   tiendas de esa plataforma y empareja solo contra sus productos.
+- **Hallazgo (2026-11-11, primera ejecución completa en vivo): bloqueo por cabeza de cola.** Best Buy es el
+  dominio más lento (1 conexión, 2 s entre solicitudes) y lo consultan todos los juegos de consola. Sus tareas
+  llenaron `cola_tareas`; Descubrir quedó bloqueado en `put()` y los juegos de PC no entraban, así que Steam y
+  GOG quedaron ociosos. Mitigación aplicada: recorrer las páginas del listado intercaladas por plataforma.
+  Solución de fondo (pendiente, para un ADR): una cola por dominio en la etapa de descarga, para que un sitio
+  lento no frene a los demás.
 - **Pendiente:** paralelismo "por tienda" (variantes de una tienda en paralelo).
 - **No medir rendimiento con este pipeline hasta entregar las predicciones del Hito 1.**
