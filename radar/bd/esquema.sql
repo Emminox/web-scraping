@@ -1,8 +1,9 @@
 -- =============================================================================
 -- Esquema de la base de datos del Radar de Ofertas Multinúcleo (ADR-003: SQLite)
 -- =============================================================================
--- Versión del esquema: 2 (se guarda en PRAGMA user_version; ver radar/bd/conexion.py).
--- Cambios: v2 agrega ejecucion_etapa.ventana_segundos (migración automática desde v1).
+-- Versión del esquema: 3 (se guarda en PRAGMA user_version; ver radar/bd/conexion.py).
+-- Cambios: v2 agrega ejecucion_etapa.ventana_segundos; v3 agrega producto_tienda.imagen_url
+-- (migraciones automáticas desde versiones anteriores).
 -- Explicación completa y diagrama: docs/esquema-bd.md
 --
 -- Convenciones:
@@ -130,6 +131,7 @@ CREATE TABLE IF NOT EXISTS producto_tienda (
                           CHECK (estado_emparejamiento IN ('pendiente', 'aceptado', 'dudoso', 'rechazado')),
     motivo_duda           TEXT,                  -- 'cerca del umbral', 'bundle', 'DLC'... (panel de métricas).
     visto_por_primera_vez TEXT NOT NULL,
+    imagen_url            TEXT,                  -- (v3) Imagen del producto, si la tienda la da.
     UNIQUE (fuente_id, url),                     -- La misma ficha de la misma tienda se guarda una sola vez.
     -- Un producto aceptado o dudoso debe apuntar a un juego.
     CHECK (estado_emparejamiento NOT IN ('aceptado', 'dudoso') OR juego_id IS NOT NULL)

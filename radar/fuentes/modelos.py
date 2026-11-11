@@ -36,6 +36,7 @@ class Candidato:
     resena_porcentaje: int | None = None  # Solo Steam: % de reseñas positivas.
     resena_cantidad: int | None = None    # Solo Steam: cantidad de reseñas.
     obtenida_en: str | None = None        # Cuándo se descargó la página de donde salió (ISO, UTC).
+    imagen_url: str | None = None         # Imagen del producto, si la tienda la da (Best Buy: carátula de la caja).
 
 
 def a_centavos(valor: object) -> int | None:

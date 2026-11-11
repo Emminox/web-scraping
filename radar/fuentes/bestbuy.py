@@ -50,6 +50,7 @@ def parsear_busqueda(cuerpo: bytes) -> tuple[Candidato, ...]:
     precios: dict[str, tuple] = {}
     nombres: dict[str, str] = {}
     urls: dict[str, str] = {}
+    imagenes: dict[str, str] = {}
 
     def recorrer(nodo: object) -> None:
         if isinstance(nodo, dict):
@@ -58,6 +59,9 @@ def parsear_busqueda(cuerpo: bytes) -> tuple[Candidato, ...]:
                 precios[sku] = (nodo["customerPrice"], nodo.get("displayableRegularPrice"))
             if sku and isinstance(nodo.get("name"), dict) and nodo["name"].get("short"):
                 nombres[sku] = nodo["name"]["short"]
+            imagen = nodo.get("primaryImage")
+            if sku and isinstance(imagen, dict) and str(imagen.get("piscesHref", "")).startswith("https://"):
+                imagenes.setdefault(sku, imagen["piscesHref"])
             producto = nodo.get("product")
             if nodo.get("pdpUrl") and isinstance(producto, dict) and producto.get("skuId"):
                 urls[producto["skuId"]] = nodo["pdpUrl"]
@@ -93,6 +97,9 @@ def parsear_busqueda(cuerpo: bytes) -> tuple[Candidato, ...]:
                 precio_actual_centavos=a_centavos(actual),
                 precio_regular_centavos=a_centavos(regular) if regular is not None else a_centavos(actual),
                 tipo="otro" if "bundle" in minusculas else "juego",
+                # Carátula de la caja a 600x900 como máximo (el servicio de imágenes de Best Buy acepta el tamaño
+                # en la URL): ~80 KB, proporción de portada. Se usa en el sitio para juegos sin portada en Steam.
+                imagen_url=f"{imagenes[sku]};maxHeight=900;maxWidth=600" if sku in imagenes else None,
             )
         )
     return tuple(candidatos)

@@ -91,6 +91,8 @@ class PruebasBestBuy(unittest.TestCase):
         self.assertEqual((hades.plataforma, hades.formato), ("switch", "fisico"))
         self.assertTrue(hades.url.startswith("https://www.bestbuy.com/product/"))
         self.assertGreater(hades.precio_actual_centavos, 0)
+        self.assertTrue(hades.imagen_url.startswith("https://pisces.bbystatic.com/"))
+        self.assertTrue(hades.imagen_url.endswith(";maxHeight=900;maxWidth=600"))
         self.assertEqual(bestbuy._plataforma("Hades II Nintendo Switch 2 - Nintendo Switch 2"), "switch2")
         self.assertEqual(bestbuy._plataforma("Elden Ring - PlayStation 5"), "ps5")
 

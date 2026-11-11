@@ -18,7 +18,7 @@ from pathlib import Path
 
 # Versión actual del esquema. Si se cambia esquema.sql de forma incompatible, se sube este número y
 # se escribe una migración; así una base vieja no se usa por error con código nuevo.
-VERSION_ESQUEMA = 2
+VERSION_ESQUEMA = 3
 
 RUTA_ESQUEMA = Path(__file__).with_name("esquema.sql")
 
@@ -27,6 +27,7 @@ RUTA_ESQUEMA = Path(__file__).with_name("esquema.sql")
 MIGRACIONES = {
     1: ["ALTER TABLE ejecucion_etapa ADD COLUMN ventana_segundos REAL NOT NULL DEFAULT 0 "
         "CHECK (ventana_segundos >= 0)"],
+    2: ["ALTER TABLE producto_tienda ADD COLUMN imagen_url TEXT"],
 }
 
 

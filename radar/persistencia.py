@@ -71,8 +71,10 @@ class Persistidor:
             ON CONFLICT (clave) DO UPDATE SET
                 titulo_canonico = CASE WHEN juego.origen = 'manual' THEN juego.titulo_canonico
                                        ELSE excluded.titulo_canonico END,
-                imagen_url = COALESCE(juego.imagen_url, excluded.imagen_url),
-                imagen_fuente_id = COALESCE(juego.imagen_fuente_id, excluded.imagen_fuente_id),
+                -- La imagen más reciente gana (antes se conservaba la primera y una mejora del parser nunca
+                -- llegaba a la base). Si esta vez no vino imagen, se mantiene la anterior.
+                imagen_url = COALESCE(excluded.imagen_url, juego.imagen_url),
+                imagen_fuente_id = COALESCE(excluded.imagen_fuente_id, juego.imagen_fuente_id),
                 activo = 1
             RETURNING id
             """,
@@ -145,19 +147,20 @@ class Persistidor:
             (fuente_id, candidato.url),
         ).fetchone()
         valores = (candidato.titulo, candidato.plataforma, candidato.formato, candidato.tipo, juego_id,
-                   emparejamiento.similitud, emparejamiento.estado, emparejamiento.motivo)
+                   emparejamiento.similitud, emparejamiento.estado, emparejamiento.motivo, candidato.imagen_url)
         if existente is None:
             return conexion.execute(
                 "INSERT INTO producto_tienda (titulo_en_tienda, plataforma_codigo, formato, tipo, juego_id, similitud, "
-                "estado_emparejamiento, motivo_duda, fuente_id, url, visto_por_primera_vez) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                "estado_emparejamiento, motivo_duda, imagen_url, fuente_id, url, visto_por_primera_vez) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 (*valores, fuente_id, candidato.url, ahora),
             ).fetchone()[0]
         if not _debe_reclamar(emparejamiento, clave, existente):
             return None
         conexion.execute(
             "UPDATE producto_tienda SET titulo_en_tienda = ?, plataforma_codigo = ?, formato = ?, tipo = ?, "
-            "juego_id = ?, similitud = ?, estado_emparejamiento = ?, motivo_duda = ? WHERE id = ?",
+            "juego_id = ?, similitud = ?, estado_emparejamiento = ?, motivo_duda = ?, "
+            "imagen_url = COALESCE(?, imagen_url) WHERE id = ?",
             (*valores, existente["id"]),
         )
         return existente["id"]

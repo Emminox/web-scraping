@@ -126,10 +126,32 @@ class PruebasSitio(BasePrueba):
         self.assertTrue(tarjeta["en_oferta"])
         self.assertFalse(tarjeta["minimo_historico"])  # Con una sola fecha de observación, no se marca.
         self.assertEqual((tarjeta["metascore"], tarjeta["steam"]), (90, 98))
+        # Imágenes en orden de preferencia: Steam (producto aceptado) primero, Metacritic al final.
+        self.assertTrue(tarjeta["imagenes"][0].endswith("/apps/1/library_600x900_2x.jpg"))
+        self.assertEqual(tarjeta["imagenes"][-1], "https://www.metacritic.com/a/img/x.jpg")
         detalle = json.loads((destino / "datos" / "juegos" / "hades.json").read_text(encoding="utf-8"))
         self.assertEqual([p["precio"] for p in detalle["precios"]], [1249, 1999])  # De menor a mayor.
         for archivo in ("index.html", "juego.html", "metricas.html", "app.js", "estilos.css", "datos/metricas.json"):
             self.assertTrue((destino / archivo).exists(), archivo)
+
+
+class PruebasImagenes(unittest.TestCase):
+    def test_portada_steam_desde_url_del_producto(self):
+        from radar.sitio.generar import portada_steam
+        self.assertEqual(
+            portada_steam("https://store.steampowered.com/app/1145360/Hades/"),
+            "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1145360/library_600x900_2x.jpg",
+        )
+        self.assertIsNone(portada_steam("https://store.steampowered.com/bundle/123/Algo/"))
+        self.assertIsNone(portada_steam(None))
+
+    def test_original_de_metacritic(self):
+        from radar.sitio.generar import original_metacritic
+        redimensionada = ("https://www.metacritic.com/a/img/resize/2ad6447e240f2121347f4973e8c31413dd76505a/"
+                          "catalog/provider/6/3/6-1-844837-13.jpg?auto=webp&fit=cover&height=288&quality=70&width=192")
+        self.assertEqual(original_metacritic(redimensionada),
+                         "https://www.metacritic.com/a/img/catalog/provider/6/3/6-1-844837-13.jpg")
+        self.assertIsNone(original_metacritic(None))
 
 
 if __name__ == "__main__":

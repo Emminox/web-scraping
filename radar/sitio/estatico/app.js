@@ -35,6 +35,32 @@ function urlSegura(url) {
   }
 }
 
+/**
+ * Imagen con cadena de respaldo: usa la primera URL de `candidatas`; si no carga (p. ej. un juego sin portada en
+ * Steam), pasa a la siguiente. Termina siempre porque el índice solo avanza y la lista es finita.
+ * `altaResolucion` es la versión grande de la ÚLTIMA candidata (Metacritic): se ofrece con srcset "2x", así las
+ * pantallas normales (1x) cargan la pequeña y solo las pantallas con escala >= 125 % cargan la grande.
+ */
+function imagen(candidatas, atributos = {}, altaResolucion = null) {
+  const urls = (candidatas || []).map(urlSegura).filter(Boolean);
+  if (urls.length === 0) return null;
+  const hd = urlSegura(altaResolucion);
+  const img = el("img", { ...atributos, decoding: "async" });
+  let actual = 0;
+  const usar = (indice) => {
+    actual = indice;
+    if (hd && indice === urls.length - 1) img.srcset = `${urls[indice]} 1x, ${hd} 2x`;
+    else img.removeAttribute("srcset");
+    img.src = urls[indice];
+  };
+  img.addEventListener("error", () => { if (actual + 1 < urls.length) usar(actual + 1); });
+  // Si la imagen no es vertical (p. ej. cajas fotografiadas en cuadrado en Best Buy), se muestra completa en vez
+  // de recortarla para llenar la proporción 2:3 de la tarjeta.
+  img.addEventListener("load", () => img.classList.toggle("completa", img.naturalWidth / img.naturalHeight > 0.75));
+  usar(0);
+  return img;
+}
+
 const precio = (centavos) => (centavos === null || centavos === undefined ? "—" : "$" + (centavos / 100).toFixed(2));
 const fecha = (iso) => (iso ? new Date(iso).toLocaleString("es-CR", { dateStyle: "medium", timeStyle: "short" }) : "—");
 const segundos = (s) => (s === null || s === undefined ? "—" : s.toFixed(2) + " s");
@@ -106,7 +132,7 @@ async function paginaResultados() {
   }
 
   function tarjeta(juego) {
-    const imagen = urlSegura(juego.imagen);
+    const portada = imagen(juego.imagenes, { alt: "", loading: "lazy" }, juego.imagen_hd);
     const enlace = "juego.html?clave=" + encodeURIComponent(juego.clave);
     const lineaPrecio = el("div", {}, el("span", { class: "precio", text: precio(juego.precio) }));
     if (juego.regular && juego.regular > juego.precio) lineaPrecio.append(el("span", { class: "tachado", text: precio(juego.regular) }));
@@ -119,7 +145,7 @@ async function paginaResultados() {
     if (juego.metascore !== null) calificacion.push(`Metascore ${juego.metascore}`);
     if (juego.steam !== null) calificacion.push(`Steam ${juego.steam}%`);
     return el("article", { class: "card" },
-      imagen ? el("a", { href: enlace }, el("img", { src: imagen, alt: "", loading: "lazy" })) : null,
+      portada ? el("a", { href: enlace, class: "portada" }, portada) : el("div", { class: "portada" }),
       el("div", { class: "cuerpo" },
         el("h3", {}, el("a", { href: enlace, text: juego.titulo })),
         lineaPrecio, etiquetas, plataformas,
@@ -214,7 +240,7 @@ async function paginaDetalle() {
   }
   document.title = juego.titulo + " · Radar de Ofertas";
   mostrarActualizacion(juego.generado_en);
-  const imagen = urlSegura(juego.imagen);
+  const portada = imagen(juego.imagenes, { alt: "Portada de " + juego.titulo });
 
   const precios = tabla(["Tienda", "Plataforma", "Formato", "Precio", "Regular", "Obtenido"],
     juego.precios.map((p) => [
@@ -232,7 +258,7 @@ async function paginaDetalle() {
   const series = juego.historial.map((h) => ({ nombre: h.tienda, puntos: h.puntos.map(([f, c]) => [Date.parse(f), c]) }));
   contenido.replaceChildren(
     el("div", { class: "detalle" },
-      el("div", {}, imagen ? el("img", { src: imagen, alt: "" }) : null),
+      el("div", { class: "portada" }, portada),
       el("div", {},
         el("h2", { text: juego.titulo }),
         el("p", { class: "nota", text: `Tipo: ${juego.tipo}` }),
