@@ -37,13 +37,23 @@ button, input, select, textarea { font: inherit; }
 body { margin: 0; font: 15px/1.5 Consolas, "Cascadia Mono", Menlo, Monaco, "Liberation Mono", "Courier New", monospace;
        background: var(--fondo); color: var(--texto); }
 a { color: var(--acento); }
-header.barra { background: var(--tarjeta); border-bottom: 1px solid var(--borde); position: sticky; top: 0; z-index: 5; }
-header.barra .contenido { max-width: 1200px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+/* Encabezado y pie como "tarjetas" flotantes: mismo borde, esquinas y sombra que los paneles, con colores del
+   tema. El encabezado sigue fijo arriba; la franja de fondo detrás evita que el contenido se vea al desplazarse. */
+header.barra { background: var(--fondo); position: sticky; top: 0; z-index: 5; padding: 12px 16px 0; }
+header.barra .contenido, footer {
+  max-width: 1168px; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; box-shadow: var(--sombra);
+}
+header.barra .contenido { margin: 0 auto; padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 header.barra h1 { font-size: 18px; margin: 0; }
-header.barra nav a { margin-right: 14px; text-decoration: none; font-weight: 600; }
-header.barra .tema { margin-left: auto; }
+/* Menú en pastillas redondeadas; la página actual queda resaltada (aria-current en el HTML). */
+header.barra nav { display: flex; gap: 6px; flex-wrap: wrap; }
+header.barra nav a { padding: 5px 12px; border-radius: 999px; border: 1px solid transparent; text-decoration: none; font-weight: 600; }
+header.barra nav a:hover { background: var(--chip); }
+header.barra nav a[aria-current="page"] { background: var(--chip); border-color: var(--borde); color: var(--texto); }
+header.barra .tema { margin-left: auto; border-radius: 999px; padding: 5px 14px; }
+header.barra .tema:hover { background: var(--chip); }
 main { max-width: 1200px; margin: 0 auto; padding: 16px; }
-footer { max-width: 1200px; margin: 0 auto; padding: 16px; color: var(--suave); font-size: 13px; }
+footer { width: calc(100% - 32px); margin: 0 auto 16px; padding: 12px 16px; color: var(--suave); font-size: 13px; }
 .diseno { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }  /* 250 px: con Consolas (más ancha) "Mayor % de descuento" no se corta. */
 @media (max-width: 760px) { .diseno { grid-template-columns: 1fr; } }
 .filtros { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; align-self: start; box-shadow: var(--sombra); }
