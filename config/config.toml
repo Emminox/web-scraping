@@ -59,6 +59,11 @@ max_reintentos = 3
 backoff_base_segundos = 1.0
 backoff_max_segundos = 30.0
 
+# Si un sitio responde 429/503 pidiendo esperar (Retry-After) MÁS que el backoff máximo, no se reintenta:
+# el dominio queda en pausa todo ese tiempo y sus tareas van a la cola de fallidos. Antes del reintento final
+# se espera a que termine la pausa solo si no pasa de este tope; si pasa, ese dominio queda para la próxima corrida.
+pausa_maxima_segundos = 1800.0
+
 # Límites por dominio que se aplican cuando el dominio no tiene una regla propia abajo.
 #   max_conexiones           -> solicitudes simultáneas permitidas al mismo dominio (semáforo)
 #   intervalo_minimo_segundos -> separación mínima entre el INICIO de dos solicitudes al mismo
@@ -94,8 +99,10 @@ max_conexiones = 1
 intervalo_minimo_segundos = 2.0
 
 [red.dominios."www.cheapshark.com"]
+# El 2026-11-11 respondió 429 con Retry-After: 993 tras 67 solicitudes en ~4,5 min (una cada ~4 s).
+# No publica un límite: se usa una cada 6 s y, si vuelve a pedir esperar, se pausa el dominio (red.pausa_maxima_segundos).
 max_conexiones = 1
-intervalo_minimo_segundos = 1.0
+intervalo_minimo_segundos = 6.0
 
 [descubrimiento]
 # Etapa 0 (ADR-004): listados de Metacritic ordenados por Metascore, 50 juegos por página.
@@ -109,7 +116,7 @@ paginas_por_plataforma = 4
 # de esas plataformas: 12 x 50 + 8 x 50 + 2 x 4 x 50 = 1400 entradas.
 [descubrimiento.paginas]
 pc = 12
-nintendo-switch = 8
+nintendo-switch = 12
 
 [replay]
 # Latencia simulada por solicitud en modo replay (sección 11 del enunciado).

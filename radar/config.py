@@ -60,6 +60,10 @@ class ConfigRed:
     ttl_almacen_horas: float
     # Reglas específicas: nombre de dominio -> límite.
     dominios: dict[str, LimiteDominio] = field(default_factory=dict)
+    # Si un sitio pide esperar (Retry-After) más que el backoff máximo, el dominio se pausa ese tiempo, hasta
+    # este tope. Al final de la ejecución se espera a que terminen las pausas (si no pasan de este tope) antes
+    # del reintento de la cola de fallidos.
+    pausa_maxima_segundos: float = 1800.0
 
     def limite_para(self, dominio: str) -> LimiteDominio:
         """Devuelve el límite que corresponde a ``dominio`` (el específico o el de por defecto)."""
@@ -272,6 +276,7 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
             _requerido(red, "red", "ttl_almacen_horas"), "red.ttl_almacen_horas", permitir_cero=True
         ),
         dominios=dominios,
+        pausa_maxima_segundos=_numero_positivo(red.get("pausa_maxima_segundos", 1800.0), "red.pausa_maxima_segundos"),
     )
     if not config_red.user_agent:
         raise ErrorConfiguracion("'red.user_agent' no puede estar vacío: debe nombrar el proyecto.")

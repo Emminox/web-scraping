@@ -19,7 +19,7 @@ import threading
 from dataclasses import asdict, dataclass
 
 # Nombres de los contadores que se registran por dominio.
-CAMPOS = ("exitosas", "reintentos", "fallidas", "desde_almacen", "bloqueadas_robots")
+CAMPOS = ("exitosas", "reintentos", "fallidas", "desde_almacen", "bloqueadas_robots", "pausas")
 
 
 @dataclass
@@ -31,6 +31,7 @@ class ContadoresDominio:
     fallidas: int = 0           # Solicitudes que terminaron sin éxito (van a la cola de fallidos).
     desde_almacen: int = 0      # Respuestas servidas desde la caché sin tocar la red.
     bloqueadas_robots: int = 0  # URLs no descargadas porque robots.txt no lo permite.
+    pausas: int = 0             # Veces que el sitio pidió esperar (Retry-After largo) y se pausó el dominio.
 
 
 class MetricasRed:

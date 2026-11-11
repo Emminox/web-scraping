@@ -35,7 +35,9 @@ def leer_retry_after(cabeceras: dict[str, str], maximo_segundos: float) -> float
 
     Los servidores la envían con HTTP 429 (demasiadas solicitudes) o 503. Respetarla es parte del
     scraping responsable. Solo se acepta el formato en segundos; la variante con fecha se ignora.
-    El valor se limita a ``maximo_segundos`` para que un servidor no nos deje esperando horas.
+    El valor se limita a ``maximo_segundos`` para que un servidor no nos deje esperando horas. El cliente lo
+    lee SIN tope y decide: si es corto, espera y reintenta; si es largo, pausa el dominio (ver ``ClienteHttp``).
+    Recortarlo al backoff hacía reintentar antes de lo que pidió el sitio.
     """
     for nombre, valor in cabeceras.items():
         if nombre.lower() == "retry-after":

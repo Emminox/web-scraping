@@ -77,7 +77,12 @@ class VerificadorRobots:
             return reglas, True
 
         temporal = False
-        if respuesta.estado in (401, 403):
+        if respuesta.estado == 429:
+            # "Demasiadas solicitudes": no dice nada de las reglas. Antes caía en la rama de 4xx y se tomaba como
+            # "sin robots.txt" (= todo permitido). Es un fallo pasajero: prudencia y reintentar más tarde.
+            reglas.disallow_all = True
+            temporal = True
+        elif respuesta.estado in (401, 403):
             # El sitio prohíbe incluso leer sus reglas: lo tomamos como "no permitido" (definitivo).
             reglas.disallow_all = True
         elif 400 <= respuesta.estado < 500:

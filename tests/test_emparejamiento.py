@@ -41,6 +41,11 @@ class PruebasNormalizar(unittest.TestCase):
         self.assertEqual(normalizar("Hades II").numeros, frozenset({"2"}))
         self.assertEqual(normalizar("Hades").numeros, frozenset())
 
+    def test_etiquetas_entre_corchetes_de_best_buy(self):
+        bestbuy = "Death's Door - Nintendo Switch – OLED Model, Nintendo Switch, Nintendo Switch Lite [Digital]"
+        self.assertEqual(normalizar(bestbuy).texto, normalizar("Death's Door").texto)
+        self.assertEqual(normalizar("Tetris Effect: Connected - Nintendo Switch [Digital]").texto, "tetris effect connected")
+
     def test_anio_entre_parentesis(self):
         # Metacritic distingue juegos homónimos con el año; las tiendas no lo escriben.
         self.assertEqual(normalizar("Unreal Tournament (1999)").texto, "unreal tournament")
@@ -122,8 +127,18 @@ class PruebasEmparejar(unittest.TestCase):
         resultado = emparejar_juego(paquete("Hades", "pc", ("gog", [candidato("Hades Soundtrack", fuente="gog")])))
         self.assertEqual(resultado.emparejamientos[0].estado, "dudoso")
         self.assertIn("posible DLC", resultado.emparejamientos[0].motivo)
+        # Un paquete de varios juegos (otro nombre) sigue siendo dudoso o rechazado.
+        resultado = emparejar_juego(paquete("Hades", "pc", ("gog", [candidato("Hades Bundle Pack", fuente="gog", tipo="otro")])))
+        self.assertNotEqual(resultado.emparejamientos[0].estado, "aceptado")
+
+    def test_paquete_con_el_mismo_nombre_es_juego_mas_contenido(self):
+        # Caso real: GOG vende "Planescape: Torment: Enhanced Edition" como 'pack' (el juego y sus extras).
+        resultado = emparejar_juego(paquete("Planescape: Torment", "pc", (
+            "gog", [candidato("Planescape: Torment: Enhanced Edition", fuente="gog", tipo="otro")])))
+        [e] = resultado.emparejamientos
+        self.assertEqual((e.estado, e.candidato.tipo), ("aceptado", "juego_dlc"))
         resultado = emparejar_juego(paquete("Hades", "pc", ("gog", [candidato("Hades", fuente="gog", tipo="otro")])))
-        self.assertEqual(resultado.emparejamientos[0].estado, "dudoso")
+        self.assertIn("paquete con el mismo nombre", resultado.emparejamientos[0].motivo)
 
     def test_prefiere_el_juego_base_frente_al_dlc_con_igual_similitud(self):
         # La URL del DLC es alfabéticamente menor: sin la preferencia por "limpio", ganaría el DLC.

@@ -12,6 +12,7 @@ Modo vivo::
         pedir turno al limitador del dominio -> descargar con timeout
         2xx           -> guardar en el almacén y devolver
         429 / 5xx / sin respuesta -> esperar (backoff + jitter o Retry-After) y reintentar
+        429/503 con Retry-After > backoff máximo -> pausar el dominio y DominioEnPausa (sin reintentar)
         otro 4xx      -> ErrorDefinitivo (reintentar no sirve)
     si se agotan -> ReintentosAgotados (va a la cola de fallidos del pipeline)
 
@@ -39,6 +40,7 @@ from radar.red.limitador import LimitadorPorDominio
 from radar.red.metricas import MetricasRed
 from radar.red.modelos import (
     BloqueadoPorRobots,
+    DominioEnPausa,
     ErrorDefinitivo,
     ErrorRed,
     ErrorTemporal,
@@ -82,6 +84,11 @@ class ClienteHttp:
         self._modo_replay = config.ejecucion.fuente == "replay"
         self._transporte = transporte if transporte is not None else TransporteUrllib()
         self._dormir = dormir
+        self._reloj = reloj
+        # dominio -> instante (reloj monotónico) hasta el que el sitio nos pidió no volver. Protegido por un lock
+        # porque lo leen y escriben todos los hilos de descarga.
+        self._pausas: dict[str, float] = {}
+        self._lock_pausas = threading.Lock()
         self.almacen = AlmacenCapturas(config.rutas.capturas)
         self.metricas = MetricasRed()
         # En replay no hay sitio real que cuidar: se quita el intervalo de cortesía, pero el semáforo
@@ -143,10 +150,55 @@ class ClienteHttp:
 
     def _descargar_permitida(self, url: str, dominio: str) -> Respuesta:
         """Descarga ``url`` si robots.txt lo permite (con reintentos)."""
+        # La pausa se revisa ANTES que robots.txt: si el sitio pidió esperar, tampoco se le pide robots.txt.
+        self._revisar_pausa(dominio)
         if not self._robots.permitido(url):
             self.metricas.registrar(dominio, "bloqueadas_robots")
             raise BloqueadoPorRobots(f"robots.txt no permite descargar {url}")
         return self._descargar_con_reintentos(url, dominio)
+
+    # ------------------------------------------------------------------
+    # Pausas pedidas por el sitio (Retry-After largo)
+    # ------------------------------------------------------------------
+
+    def _pausa_restante(self, dominio: str) -> float:
+        with self._lock_pausas:
+            hasta = self._pausas.get(dominio, 0.0)
+        return max(0.0, hasta - self._reloj())
+
+    def _revisar_pausa(self, dominio: str) -> None:
+        """Lanza ``DominioEnPausa`` si el sitio pidió esperar y todavía no pasó ese tiempo."""
+        restante = self._pausa_restante(dominio)
+        if restante > 0:
+            self.metricas.registrar(dominio, "fallidas")
+            raise DominioEnPausa(dominio, restante)
+
+    def _pausar(self, dominio: str, segundos: float) -> None:
+        """Pausa ``dominio`` durante ``segundos``. Si ya había una pausa más larga, se conserva (``max``)."""
+        with self._lock_pausas:
+            self._pausas[dominio] = max(self._pausas.get(dominio, 0.0), self._reloj() + segundos)
+        self.metricas.registrar(dominio, "pausas")
+
+    def pausas_pendientes(self) -> dict[str, float]:
+        """Dominios en pausa ahora mismo -> segundos que faltan."""
+        with self._lock_pausas:
+            dominios = list(self._pausas)
+        return {d: r for d in dominios if (r := self._pausa_restante(d)) > 0}
+
+    def esperar_pausas(self) -> float:
+        """Espera a que terminen las pausas (si la más larga no pasa de ``pausa_maxima_segundos``).
+
+        Lo usa el reintento final de la cola de fallidos: sin esperar, las tareas de un dominio en pausa volverían
+        a fallar al instante. Devuelve los segundos esperados (0 si no había pausas o eran demasiado largas).
+        """
+        pendientes = self.pausas_pendientes()
+        if not pendientes:
+            return 0.0
+        espera = max(pendientes.values())
+        if espera > self._config.red.pausa_maxima_segundos:
+            return 0.0
+        self._dormir(espera)
+        return espera
 
     def permitido_por_robots(self, url: str) -> bool:
         """Pregunta a robots.txt sin descargar la página (lo usa la herramienta de exploración)."""
@@ -177,6 +229,8 @@ class ClienteHttp:
         total_intentos = red.max_reintentos + 1  # El primer intento más los reintentos.
 
         for intento in range(total_intentos):
+            # Otra tarea pudo pausar el dominio mientras este hilo esperaba su backoff: no se insiste.
+            self._revisar_pausa(dominio)
             try:
                 respuesta = self._descargar_una_vez(url)
                 if respuesta.ok:
@@ -185,12 +239,17 @@ class ClienteHttp:
                     return respuesta
                 if respuesta.estado == 429 or respuesta.estado >= 500:
                     # 429 = "demasiadas solicitudes"; 5xx = error del servidor. Ambos son pasajeros.
-                    raise ErrorTemporal(
-                        f"{url}: HTTP {respuesta.estado}",
-                        espera_sugerida=leer_retry_after(
-                            respuesta.cabeceras, red.backoff_max_segundos
-                        ),
-                    )
+                    # Sin tope: la pausa dura lo que pidió el sitio aunque supere ``pausa_maxima_segundos`` (ese
+                    # tope solo decide si el reintento final la espera o se rinde con ese dominio).
+                    pedida = leer_retry_after(respuesta.cabeceras, float("inf"))
+                    if pedida is not None and pedida > red.backoff_max_segundos:
+                        # El sitio pidió una espera larga (CheapShark: ~16 min). Reintentar antes la renueva, y
+                        # dormir aquí dejaría este hilo de descarga parado todo ese rato sin atender otros sitios.
+                        # Se pausa el dominio y la tarea va a la cola de fallidos.
+                        self._pausar(dominio, pedida)
+                        self.metricas.registrar(dominio, "fallidas")
+                        raise DominioEnPausa(dominio, pedida)
+                    raise ErrorTemporal(f"{url}: HTTP {respuesta.estado}", espera_sugerida=pedida)
                 # Cualquier otro código (404, 403, 410...) no mejora reintentando.
                 self.metricas.registrar(dominio, "fallidas")
                 raise ErrorDefinitivo(f"{url}: HTTP {respuesta.estado}", estado=respuesta.estado)

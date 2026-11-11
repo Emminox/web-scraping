@@ -291,6 +291,13 @@ def ejecutar(config: Config, opciones: OpcionesEjecucion) -> ResumenCorrida:
         resueltos: set[tuple[str, str]] = set()
         juegos_con_fallos = sorted({d.tarea.juego for d in resultado.fallidos}, key=lambda j: j.clave)
         if juegos_con_fallos:
+            # Si algún sitio pidió esperar (Retry-After largo), se espera a que termine la pausa: reintentar antes
+            # volvería a fallar al instante (y algunos sitios renuevan el bloqueo).
+            pendientes = cliente.pausas_pendientes()
+            if pendientes:
+                print("Esperando pausas pedidas por los sitios antes del reintento final: "
+                      + ", ".join(f"{d} {s:.0f} s" for d, s in sorted(pendientes.items())), flush=True)
+                cliente.esperar_pausas()
             persistidor_final = Persistidor(ruta_bd, ejecucion_id, fuentes)
             reintento = replace(
                 construir_definicion(config, opciones, cliente, indice, persistidor_final, ruta_bd, destino_sitio),

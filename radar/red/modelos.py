@@ -92,6 +92,19 @@ class SinCaptura(ErrorRed):
     """Modo replay: no existe una respuesta guardada para esta URL."""
 
 
+class DominioEnPausa(ErrorRed):
+    """El sitio pidió esperar (429/503 con ``Retry-After`` largo) y todavía no pasó ese tiempo.
+
+    No se reintenta ni se toca la red: la tarea va directo a la cola de fallidos y se vuelve a intentar en el
+    reintento final, cuando la pausa ya terminó.
+    """
+
+    def __init__(self, dominio: str, segundos_restantes: float) -> None:
+        super().__init__(f"{dominio} pidió esperar; faltan {segundos_restantes:.0f} s")
+        self.dominio = dominio
+        self.segundos_restantes = segundos_restantes
+
+
 class ReintentosAgotados(ErrorRed):
     """Se agotaron los reintentos; la solicitud debe ir a la cola de fallidos."""
 

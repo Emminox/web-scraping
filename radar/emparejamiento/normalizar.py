@@ -98,9 +98,19 @@ def texto_basico(titulo: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", texto).strip()
 
 
+def quitar_etiquetas_entre_corchetes(titulo: str) -> str:
+    """Quita etiquetas entre corchetes: "Death's Door - Nintendo Switch [Digital]" -> "Death's Door - Nintendo Switch ".
+
+    Best Buy las usa para el formato o la plataforma ("[Digital]", "[PlayStation 5]", "[Standard]"). Ningún título
+    de juego del catálogo usa corchetes, y dejar "digital" bajaba la similitud de 177 juegos de Switch por debajo
+    del umbral (p. ej. 0.58 para "Death's Door").
+    """
+    return re.sub(r"\[[^\]]*\]", " ", titulo)
+
+
 def normalizar(titulo: str) -> TituloNormalizado:
-    # 1) y 2) Año entre paréntesis, acentos, símbolos y puntuación (ver las dos funciones de arriba).
-    texto = texto_basico(quitar_anio_entre_parentesis(titulo))
+    # 1) y 2) Etiquetas entre corchetes, año entre paréntesis, acentos, símbolos y puntuación (funciones de arriba).
+    texto = texto_basico(quitar_anio_entre_parentesis(quitar_etiquetas_entre_corchetes(titulo)))
     # 3) Sufijos de plataforma y edición.
     texto, _ = _quitar_frases(texto, FRASES_PLATAFORMA)
     texto, ediciones = _quitar_frases(texto, FRASES_EDICION)

@@ -17,6 +17,7 @@ vivo y en modo replay; lo único que cambia es de dónde sale la respuesta.
 from radar.red.cliente import ClienteHttp, crear_cliente
 from radar.red.modelos import (
     BloqueadoPorRobots,
+    DominioEnPausa,
     ErrorDefinitivo,
     ErrorRed,
     ErrorTemporal,
@@ -28,6 +29,7 @@ from radar.red.modelos import (
 __all__ = [
     "BloqueadoPorRobots",
     "ClienteHttp",
+    "DominioEnPausa",
     "ErrorDefinitivo",
     "ErrorRed",
     "ErrorTemporal",

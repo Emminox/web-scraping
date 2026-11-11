@@ -53,6 +53,9 @@ class ResultadoJuego:
 # edición (p. ej. Steam vende "Batman: Arkham Asylum Game of the Year Edition" y no la base), así que, si todo lo
 # demás coincide, se aceptan como "juego + DLC" y la edición queda anotada (aparece en el panel de métricas).
 # Las remasterizaciones NO están aquí: son otro lanzamiento y siguen siendo dudosas (ADR-006, cambio del 2026-11-11).
+# Similitud a partir de la cual dos títulos normalizados se consideran el mismo nombre.
+SIMILITUD_IDENTICA = 0.99
+
 EDICIONES_CON_CONTENIDO = frozenset({
     "game of the year edition", "game of the year", "goty edition", "goty", "definitive edition",
     "deluxe edition", "digital deluxe edition", "digital deluxe", "deluxe", "complete edition", "ultimate edition",
@@ -73,7 +76,11 @@ def _clasificar(juego: Juego, candidato: Candidato, valor: float, titulo_juego, 
         motivos.append("edición distinta: " + ", ".join(sorted(ediciones_extra - EDICIONES_CON_CONTENIDO)))
     if titulo_candidato.dlc - titulo_juego.dlc:
         motivos.append("posible DLC: " + ", ".join(sorted(titulo_candidato.dlc - titulo_juego.dlc)))
-    if candidato.tipo != "juego":
+    # Paquete con EXACTAMENTE el mismo nombre que el juego (GOG vende así muchos clásicos: "Planescape: Torment:
+    # Enhanced Edition" es un 'pack' con el juego y sus extras). Si no hay otra duda, es el juego + contenido.
+    # Un paquete de VARIOS juegos tiene otro nombre ("Catisfaction Bundle") y no llega aquí con similitud 1.
+    paquete_mismo_nombre = candidato.tipo == "otro" and valor >= SIMILITUD_IDENTICA
+    if candidato.tipo != "juego" and not paquete_mismo_nombre:
         motivos.append(f"la tienda lo clasifica como '{candidato.tipo}'")
     if candidato.plataforma is None:
         motivos.append("plataforma desconocida")
@@ -81,6 +88,8 @@ def _clasificar(juego: Juego, candidato: Candidato, valor: float, titulo_juego, 
         return "dudoso", "; ".join(motivos)
     if ediciones_extra:
         return "aceptado", "edición con contenido extra (juego + DLC): " + ", ".join(sorted(ediciones_extra))
+    if paquete_mismo_nombre:
+        return "aceptado", "la tienda lo vende como paquete con el mismo nombre (juego + contenido)"
     return "aceptado", None
 
 

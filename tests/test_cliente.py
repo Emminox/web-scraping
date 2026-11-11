@@ -10,6 +10,7 @@ from pathlib import Path
 from radar.red import (
     BloqueadoPorRobots,
     ClienteHttp,
+    DominioEnPausa,
     ErrorDefinitivo,
     ErrorTemporal,
     ReintentosAgotados,
@@ -105,6 +106,35 @@ class PruebasCliente(unittest.TestCase):
         self.transporte.programar(URL, respuesta(URL, cuerpo=b"nueva"))
         self.assertEqual(self.crear_cliente().obtener(URL).cuerpo, b"nueva")
 
+    def test_retry_after_largo_pausa_el_dominio_sin_reintentar(self):
+        # CheapShark respondió 429 con Retry-After: 993. Recortarlo al backoff (30 s) y reintentar renovaba el bloqueo.
+        otra = "https://tienda.ejemplo.com/juego/2"
+        ahora = [0.0]
+        self.transporte.programar(URL, respuesta(URL, 429, **{"Retry-After": "900"}))
+        cliente = ClienteHttp(config_de_prueba(self.directorio), transporte=self.transporte,
+                              dormir=self.esperas.append, reloj=lambda: ahora[0])
+        with self.assertRaises(DominioEnPausa):
+            cliente.obtener(URL)
+        self.assertEqual(self.esperas, [])                    # No se quedó dormido en el hilo de descarga.
+        with self.assertRaises(DominioEnPausa):
+            cliente.obtener(otra)                             # Otra URL del mismo sitio: ni se intenta.
+        self.assertNotIn(otra, self.transporte.llamadas)
+        self.assertEqual(round(cliente.pausas_pendientes()["tienda.ejemplo.com"]), 900)
+        # El reintento final espera la pausa completa y luego el sitio vuelve a estar disponible.
+        cliente.esperar_pausas()
+        self.assertEqual(self.esperas, [900.0])
+        ahora[0] = 901.0
+        self.transporte.programar(otra, respuesta(otra))
+        self.assertEqual(cliente.obtener(otra).estado, 200)
+        self.assertEqual(cliente.metricas.instantanea()["tienda.ejemplo.com"]["pausas"], 1)
+
+    def test_retry_after_corto_sigue_siendo_un_reintento_normal(self):
+        self.transporte.programar(URL, respuesta(URL, 503, **{"Retry-After": "5"}), respuesta(URL, 200))
+        cliente = self.crear_cliente()
+        self.assertEqual(cliente.obtener(URL).estado, 200)
+        self.assertEqual(self.esperas, [5.0])
+        self.assertEqual(cliente.pausas_pendientes(), {})
+
     def test_misma_url_en_varios_hilos_se_descarga_una_sola_vez(self):
         # El transporte se queda "descargando" hasta que todos los hilos ya pidieron la URL: sin el candado por URL,
         # los 4 verían la caché vacía a la vez y harían 4 descargas.
@@ -169,7 +199,8 @@ class PruebasRobots(unittest.TestCase):
 
     def test_error_5xx_tambien_es_temporal_y_403_es_definitivo(self):
         ahora = [0.0]
-        estados = {"https://a.ejemplo/robots.txt": [503, 200], "https://b.ejemplo/robots.txt": [403, 200]}
+        estados = {"https://a.ejemplo/robots.txt": [503, 200], "https://b.ejemplo/robots.txt": [403, 200],
+                   "https://c.ejemplo/robots.txt": [429, 200]}
 
         def descargar(url):
             return respuesta(url, estados[url].pop(0), b"")
@@ -180,6 +211,12 @@ class PruebasRobots(unittest.TestCase):
         ahora[0] = 11.0
         self.assertTrue(robots.permitido("https://a.ejemplo/x"))
         self.assertFalse(robots.permitido("https://b.ejemplo/x"))  # 403 no se reintenta.
+        # 429 no significa "no hay robots.txt" (antes se tomaba como todo permitido): es temporal.
+        ahora[0] = 0.0
+        robots_c = VerificadorRobots(descargar, "RadarPruebas", reloj=lambda: ahora[0], espera_tras_fallo=10.0)
+        self.assertFalse(robots_c.permitido("https://c.ejemplo/x"))
+        ahora[0] = 11.0
+        self.assertTrue(robots_c.permitido("https://c.ejemplo/x"))
 
 
 if __name__ == "__main__":

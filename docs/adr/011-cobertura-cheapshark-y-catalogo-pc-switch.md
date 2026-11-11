@@ -27,5 +27,12 @@ Steam y GOG, que se consultan directamente). Descubrimiento: PC 12 páginas, Swi
 - Se pierde: los exclusivos de PS5/Xbox siguen sin publicarse; se informa en el panel.
 - Qué medir: juegos publicados por plataforma y solicitudes fallidas a CheapShark.
 
+## Cambio (2026-11-11, tarde)
+- CheapShark respondió 429 con `Retry-After` de ~1 h tras 67 solicitudes en ~4,5 min. No publica un límite.
+  El cliente recortaba esa espera a 30 s y reintentaba, lo que no respeta lo que pidió el sitio. Ahora una
+  espera larga pausa el dominio completo (sin tocar la red) y sus tareas van a la cola de fallidos; el
+  reintento final espera la pausa si no pasa de `red.pausa_maxima_segundos`. CheapShark baja a 1 solicitud cada 6 s.
+- Con el arreglo de "[Digital]" (ADR-006, cambio 2) Switch tiene dos tiendas reales: Switch sube de 8 a 12 páginas.
+
 ## Estado
 Aceptada (decisión delegada por el equipo; revisar en la próxima reunión).

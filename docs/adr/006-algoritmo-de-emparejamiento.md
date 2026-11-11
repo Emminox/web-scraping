@@ -32,5 +32,15 @@ Muchas tiendas venden SOLO una edición con contenido extra ("Game of the Year",
 se **acepta** como "juego + DLC" y la edición queda anotada y visible en el panel. Las remasterizaciones siguen
 siendo dudosas. El mejor candidato se elige **por tienda** (una consulta a CheapShark trae varias, ADR-011).
 
+## Cambio 2 (2026-11-11)
+Revisión de los juegos con una sola tienda (1010 juegos, 432 con una sola):
+- Best Buy agrega etiquetas entre corchetes ("[Digital]", "[PlayStation 5]"). "digital" quedaba en el título y
+  177 juegos de Switch con el producto correcto en Best Buy se rechazaban (p. ej. "Death's Door": 0,58). Ahora
+  se quita todo lo que va entre corchetes; ningún título del catálogo los usa.
+- Metacritic agrega el año entre paréntesis a juegos homónimos ("Unreal Tournament (1999)"); se quita antes de
+  comparar números.
+- GOG vende muchos clásicos como 'pack' (el juego y sus extras). Si el nombre es idéntico (similitud ≥ 0,99) y no
+  hay otra duda, se acepta como "juego + contenido"; un paquete de varios juegos tiene otro nombre y no pasa.
+
 ## Estado
 Aceptada (el umbral se revisará con el conjunto de validación).
