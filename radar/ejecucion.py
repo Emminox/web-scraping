@@ -30,6 +30,7 @@ from radar.emparejamiento.emparejar import emparejar_juego
 from radar.emparejamiento.normalizar import quitar_anio_entre_parentesis, texto_basico
 from radar.fuentes import bestbuy, cheapshark, gog, metacritic, nintendo, steam
 from radar.fuentes.cheapshark import CHEAPSHARK
+from radar.fuentes.tipo_cambio import actualizar_tipo_cambio
 from radar.fuentes.modelos import BESTBUY, GOG, NINTENDO, STEAM, Candidato
 from radar.persistencia import Persistidor
 from radar.pipeline import DefinicionPipeline, Descarga, Juego, ResultadoEjecucion, TareaDescarga, ejecutar_pipeline
@@ -313,6 +314,8 @@ def ejecutar(config: Config, opciones: OpcionesEjecucion) -> ResumenCorrida:
         estado = "completa" if resultado.juegos_persistidos > 0 else "fallida"
         _registrar_fin(conexion, ejecucion_id, resultado, cliente.metricas.instantanea(), resueltos, estado)
         generar_metricas(conexion, destino_sitio, config.rutas.mediciones, resultado.errores)
+        # Tasas para mostrar los precios en colones y euros (solo presentación; los datos siguen en USD, ADR-012).
+        actualizar_tipo_cambio(cliente, destino_sitio)
         publicados = len(json.loads((destino_sitio / "datos" / "juegos.json").read_text(encoding="utf-8"))["juegos"])
         return ResumenCorrida(ejecucion_id, resultado, len(resueltos), publicados, destino_sitio, ruta_bd)
     finally:

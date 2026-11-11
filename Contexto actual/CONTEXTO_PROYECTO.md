@@ -272,6 +272,7 @@ Procesamiento paralelo de imágenes (+5) · Lista de deseos con alertas (+3) · 
 | Replay: adaptador dentro de ClienteHttp (almacén de capturas) | Aceptada | ADR-009 |
 | Hosting: GitHub Pages + Actions diario + base en la Release `datos` | Aceptada (falta activar Pages) | ADR-010 |
 | Cobertura: CheapShark (tiendas de PC por API) + descubrimiento PC 12 / Switch 12 / PS5 4 / Xbox 4 páginas; ediciones GOTY/Complete y paquetes con el mismo nombre aceptados como juego + DLC; Retry-After largo pausa el dominio (CheapShark 1 cada 6 s) | Aceptada | ADR-011, ADR-006 |
+| Precios en colones y euros: tipo de cambio diario de open.er-api.com, conversión solo al mostrar (selector global y por juego) | Aceptada | ADR-012 |
 | Asignación de roles | Pendiente | `docs/acta.md` |
 
 **Repositorio:** https://github.com/Emminox/web-scraping · **Sitio:** https://emminox.github.io/web-scraping/

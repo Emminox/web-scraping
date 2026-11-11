@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 
 from radar.bd import abrir_bd
 from radar.config import MODOS_VALIDOS, cargar_config
 from radar.ejecucion import OpcionesEjecucion, ejecutar, rutas_para
+from radar.fuentes.tipo_cambio import actualizar_tipo_cambio
+from radar.red import crear_cliente
 from radar.sitio import generar_sitio
 
 
@@ -49,6 +52,10 @@ def main(argumentos: list[str] | None = None) -> int:
             resumen = generar_sitio(conexion, destino, config.rutas.mediciones)
         finally:
             conexion.close()
+        if opciones.fuente == "vivo":
+            # Una consulta (o ninguna, si está en la caché de 12 h) para las tasas de colones y euros.
+            config_vivo = replace(config, ejecucion=replace(config.ejecucion, fuente="vivo"))
+            actualizar_tipo_cambio(crear_cliente(config_vivo), destino)
         print(f"Sitio generado en {destino}: {resumen['publicados']} juegos publicados.")
         return 0
 

@@ -129,7 +129,71 @@ function imagen(candidatas, atributos = {}) {
   return img;
 }
 
-const precio = (centavos) => (centavos === null || centavos === undefined ? "—" : "$" + (centavos / 100).toFixed(2));
+// ---------------------------------------------------------------------------------------------
+// Monedas: los precios se guardan en centavos de USD (ADR-005); colones y euros son solo una conversión al mostrar
+// (ADR-012) con las tasas que publica el pipeline en datos/tipo_cambio.json. Sin ese archivo, solo hay USD.
+// ---------------------------------------------------------------------------------------------
+
+const MONEDAS = [["USD", "USD $", "Dólares"], ["CRC", "CRC ₡", "Colones"], ["EUR", "EUR €", "Euros"]];
+const CLAVE_MONEDA = "radar.moneda";
+let tipoCambio = null;  // { tasas: { CRC, EUR }, actualizado_en, atribucion } o null.
+let moneda = "USD";     // Moneda en la que se muestran los precios ahora mismo.
+
+const tasaDe = (codigo) => (codigo === "USD" ? 1 : tipoCambio?.tasas?.[codigo] ?? null);
+
+/** Carga las tasas y la moneda global elegida antes (si sigue disponible). */
+async function cargarTipoCambio() {
+  try { tipoCambio = await cargar("datos/tipo_cambio.json"); } catch { tipoCambio = null; }
+  let guardada = "USD";
+  try { guardada = localStorage.getItem(CLAVE_MONEDA) || "USD"; } catch { /* Sin almacenamiento: USD. */ }
+  moneda = tasaDe(guardada) ? guardada : "USD";
+  mostrarAtribucion();
+}
+
+/** Centavos de USD -> centésimos de la moneda elegida (los gráficos convierten sus puntos con esto). */
+const convertir = (centavosUSD) => centavosUSD * tasaDe(moneda);
+
+/** Da formato a un monto YA convertido (en centésimos de la moneda elegida). */
+function formatear(centesimos, { enteros = false } = {}) {
+  const unidades = centesimos / 100;
+  if (moneda === "USD") return "$" + (enteros ? Math.round(unidades) : unidades.toFixed(2));
+  // Colones sin decimales (como en Costa Rica: "₡25 990"); euros con 2 ("€12,34").
+  const decimales = enteros || moneda === "CRC" ? 0 : 2;
+  const numero = new Intl.NumberFormat("es-CR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales }).format(unidades);
+  return (moneda === "CRC" ? "₡" : "€") + numero;
+}
+
+/** Precio en centavos de USD, mostrado en la moneda elegida. */
+function precio(centavosUSD) {
+  return centavosUSD === null || centavosUSD === undefined ? "—" : formatear(convertir(centavosUSD));
+}
+
+/** Botones USD / CRC / EUR. ``alCambiar`` decide qué pasa después (guardar o no, volver a dibujar). */
+function selectorMoneda(alCambiar, etiqueta) {
+  if (!tipoCambio) return null;
+  const grupo = el("div", { class: "moneda", role: "group", "aria-label": etiqueta });
+  const pintar = () => { for (const b of grupo.children) b.setAttribute("aria-pressed", String(b.dataset.moneda === moneda)); };
+  for (const [codigo, texto, nombre] of MONEDAS) {
+    const boton = el("button", { type: "button", text: texto, title: "Mostrar los precios en " + nombre.toLowerCase() });
+    boton.dataset.moneda = codigo;
+    boton.addEventListener("click", () => { moneda = codigo; pintar(); alCambiar(codigo); });
+    grupo.append(boton);
+  }
+  pintar();
+  return grupo;
+}
+
+/** Atribución que exige la fuente de las tasas, en el pie de las páginas que las usan. */
+function mostrarAtribucion() {
+  const destino = $("#atribucion");
+  if (!destino || !tipoCambio) return;
+  // En UTC, como la publica la fuente (a las 00:00 UTC; en Costa Rica aún sería el día anterior).
+  const dia = new Date(tipoCambio.actualizado_en).toLocaleDateString("es-CR", { dateStyle: "medium", timeZone: "UTC" });
+  destino.replaceChildren(
+    document.createTextNode(` · Colones y euros: conversión aproximada con el tipo de cambio del ${dia} (`),
+    enlaceExterno(tipoCambio.atribucion.url, tipoCambio.atribucion.texto), document.createTextNode(")"));
+}
+
 const fecha = (iso) => (iso ? new Date(iso).toLocaleString("es-CR", { dateStyle: "medium", timeStyle: "short" }) : "—");
 const segundos = (s) => (s === null || s === undefined ? "—" : s.toFixed(2) + " s");
 
@@ -161,6 +225,13 @@ async function paginaResultados() {
     return;
   }
   mostrarActualizacion(datos.generado_en);
+  await cargarTipoCambio();
+  // Selector GLOBAL: se guarda en el navegador y es la moneda inicial de todas las páginas (también del detalle).
+  const global = selectorMoneda((codigo) => {
+    try { localStorage.setItem(CLAVE_MONEDA, codigo); } catch { /* Navegación privada: solo esta visita. */ }
+    dibujar();
+  }, "Moneda de los precios (todo el sitio)");
+  if (global) $("#moneda-global").replaceChildren(global);
 
   for (const [codigo, nombre] of Object.entries(datos.familias)) {
     $("#filtro-plataforma").append(el("option", { value: codigo, text: nombre }));
@@ -451,8 +522,9 @@ function graficoHistorial(series, { ancho = 720, alto = 300 } = {}) {
   // Guías horizontales con el valor escrito dentro del área, arriba de la línea. Si todas las marcas caen en
   // dólares enteros se escriben así ("$20"); si no (juegos baratos, pasos de 50 centavos), con centavos ("$2.50").
   // Antes siempre se redondeaba al dólar y aparecían etiquetas repetidas ("$1", "$1", "$2"…).
-  const enDolaresEnteros = marcasY.every((v) => Math.abs(v % 100) < 1e-6);
-  const etiquetaY = (v) => (enDolaresEnteros ? "$" + Math.round(v / 100) : precio(v));
+  // Los puntos ya vienen convertidos a la moneda elegida (paginaDetalle): aquí solo se da formato.
+  const enUnidadesEnteras = marcasY.every((v) => Math.abs(v % 100) < 1e-6);
+  const etiquetaY = (v) => formatear(v, { enteros: enUnidadesEnteras });
   for (const v of marcasY) {
     lienzo.append(svg("line", { x1: m.izq, x2: ancho - m.der, y1: Y(v), y2: Y(v), class: "guia" }));
     // El valor va arriba de su línea; el de la línea superior, debajo (si no, quedaría cortado por el borde).
@@ -486,7 +558,7 @@ function graficoHistorial(series, { ancho = 720, alto = 300 } = {}) {
     recuadro.replaceChildren(
       el("b", { text: fechaUTC(t).toLocaleDateString("es-CR", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }) }),
       ...filas.map((f) => el("div", {}, el("span", { style: `color:${f.s.color}`, text: "● " }),
-                                       document.createTextNode(`${precio(f.v)} · ${f.s.nombre}`))));
+                                       document.createTextNode(`${formatear(f.v)} · ${f.s.nombre}`))));
     recuadro.hidden = false;
     const izquierda = evento.clientX - contenedor.getBoundingClientRect().left;
     recuadro.style.left = `${Math.min(izquierda + 12, contenedor.clientWidth - recuadro.offsetWidth - 4)}px`;
@@ -547,45 +619,58 @@ async function paginaDetalle() {
   }
   document.title = juego.titulo + " · Radar de Ofertas";
   mostrarActualizacion(juego.generado_en);
+  await cargarTipoCambio();  // Empieza con la moneda global elegida en la página de ofertas.
+  // La portada se crea una sola vez: al cambiar de moneda se vuelve a dibujar todo lo demás sin recargarla.
   const portada = imagen(juego.imagenes, { alt: "Portada de " + juego.titulo });
 
-  const precios = tabla(["Tienda", "Plataforma", "Formato", "Precio", "Regular", "Obtenido"],
-    juego.precios.map((p) => [
-      enlaceExterno(p.url, p.tienda), p.plataforma, p.formato === "fisico" ? "Físico" : "Digital",
-      el("span", {}, el("b", { text: precio(p.precio) }), p.en_oferta ? el("span", { class: "etiqueta descuento", text: " oferta", style: "margin-left:6px" }) : null),
-      precio(p.regular),
-      el("span", {}, document.createTextNode(fecha(p.obtenido_en)), p.desactualizado ? el("span", { class: "etiqueta viejo", text: "desactualizado", style: "margin-left:6px" }) : null),
-    ]), [3, 4]);
+  function dibujar() {
+    // Selector LOCAL: cambia la moneda solo en esta página; no se guarda (la global sigue igual).
+    const local = selectorMoneda(() => dibujar(), "Moneda de los precios (solo esta página)");
+    const aviso = moneda === "USD" ? null : el("p", { class: "nota",
+      text: "Precios convertidos desde USD con el tipo de cambio del día; las tiendas cobran en USD, así que el monto final puede variar." });
 
-  const plataformas = tabla(["Plataforma", "Lanzamiento", "MSRP"],
-    juego.plataformas.map((p) => [p.nombre, p.fecha_lanzamiento || "—", precio(p.msrp)]), [2]);
-  const calificaciones = tabla(["Fuente", "Plataforma", "Puntaje", "Reseñas", "Obtenido"],
-    juego.calificaciones.map((c) => [c.fuente, c.plataforma || "—", `${c.puntaje} / ${c.escala}`, c.resenas ?? "—", fecha(c.obtenido_en)]), [2, 3]);
+    const precios = tabla(["Tienda", "Plataforma", "Formato", "Precio", "Regular", "Obtenido"],
+      juego.precios.map((p) => [
+        enlaceExterno(p.url, p.tienda), p.plataforma, p.formato === "fisico" ? "Físico" : "Digital",
+        el("span", {}, el("b", { text: precio(p.precio) }), p.en_oferta ? el("span", { class: "etiqueta descuento", text: " oferta", style: "margin-left:6px" }) : null),
+        precio(p.regular),
+        el("span", {}, document.createTextNode(fecha(p.obtenido_en)), p.desactualizado ? el("span", { class: "etiqueta viejo", text: "desactualizado", style: "margin-left:6px" }) : null),
+      ]), [3, 4]);
 
-  // Un punto por tienda y por día ("AAAA-MM-DD", día UTC). Date.parse lo interpreta como medianoche UTC, por eso
-  // la etiqueta también se formatea en UTC (si no, en Costa Rica mostraría el día anterior).
-  const series = juego.historial.map((h) => ({ nombre: h.tienda, puntos: h.puntos.map(([dia, c]) => [Date.parse(dia), c]) }));
-  const dias = new Set(series.flatMap((s) => s.puntos.map((p) => p[0])));
-  const diaCorto = (x) => new Date(x).toLocaleDateString("es-CR", { timeZone: "UTC", day: "numeric", month: "short" });
-  // Con un solo día no hay tendencia que mostrar: un gráfico ahí solo confundiría (puntos sueltos sin líneas).
-  const historial = dias.size >= 2
-    ? graficoHistorial(series)
-    : el("p", { class: "nota", text: dias.size === 1
-        ? `El historial se está construyendo: por ahora hay precios de un solo día (${diaCorto([...dias][0])}). `
-          + "El sitio guarda los precios de cada actualización diaria; el gráfico aparecerá cuando haya al menos dos días."
-        : "Sin historial de precios." });
-  contenido.replaceChildren(
-    el("div", { class: "detalle" },
-      el("div", { class: "portada" }, portada),
-      el("div", {},
-        el("h2", { text: juego.titulo }),
-        el("p", { class: "nota", text: `Tipo: ${juego.tipo}` }),
-        el("section", { class: "panel" }, el("h2", { text: "Precios (de menor a mayor)" }), precios),
-        el("section", { class: "panel" }, el("h2", { text: "Historial de precios" }), resumenMinimos(juego.minimos), historial),
-        el("section", { class: "panel" }, el("h2", { text: "Plataformas y precio de referencia (MSRP)" }), plataformas),
-        el("section", { class: "panel" }, el("h2", { text: "Calificaciones" }), calificaciones),
-        el("section", { class: "panel" }, el("h2", { text: "Duración (How Long To Beat)" }),
-          el("p", { class: "nota", text: juego.duracion_nota })))));
+    const plataformas = tabla(["Plataforma", "Lanzamiento", "MSRP"],
+      juego.plataformas.map((p) => [p.nombre, p.fecha_lanzamiento || "—", precio(p.msrp)]), [2]);
+    const calificaciones = tabla(["Fuente", "Plataforma", "Puntaje", "Reseñas", "Obtenido"],
+      juego.calificaciones.map((c) => [c.fuente, c.plataforma || "—", `${c.puntaje} / ${c.escala}`, c.resenas ?? "—", fecha(c.obtenido_en)]), [2, 3]);
+
+    // Un punto por tienda y por día ("AAAA-MM-DD", día UTC). Date.parse lo interpreta como medianoche UTC, por eso
+    // la etiqueta también se formatea en UTC (si no, en Costa Rica mostraría el día anterior). Los precios se
+    // convierten aquí a la moneda elegida, así las marcas del eje quedan redondas en esa moneda.
+    const series = juego.historial.map((h) => ({ nombre: h.tienda, puntos: h.puntos.map(([dia, c]) => [Date.parse(dia), convertir(c)]) }));
+    const dias = new Set(series.flatMap((s) => s.puntos.map((p) => p[0])));
+    const diaCorto = (x) => new Date(x).toLocaleDateString("es-CR", { timeZone: "UTC", day: "numeric", month: "short" });
+    // Con un solo día no hay tendencia que mostrar: un gráfico ahí solo confundiría (puntos sueltos sin líneas).
+    const historial = dias.size >= 2
+      ? graficoHistorial(series)
+      : el("p", { class: "nota", text: dias.size === 1
+          ? `El historial se está construyendo: por ahora hay precios de un solo día (${diaCorto([...dias][0])}). `
+            + "El sitio guarda los precios de cada actualización diaria; el gráfico aparecerá cuando haya al menos dos días."
+          : "Sin historial de precios." });
+    contenido.replaceChildren(
+      el("div", { class: "detalle" },
+        el("div", { class: "portada" }, portada),
+        el("div", {},
+          el("h2", { text: juego.titulo }),
+          el("p", { class: "nota", text: `Tipo: ${juego.tipo}` }),
+          el("section", { class: "panel" },
+            el("div", { class: "panel-cabecera" }, el("h2", { text: "Precios (de menor a mayor)" }), local),
+            aviso, precios),
+          el("section", { class: "panel" }, el("h2", { text: "Historial de precios" }), resumenMinimos(juego.minimos), historial),
+          el("section", { class: "panel" }, el("h2", { text: "Plataformas y precio de referencia (MSRP)" }), plataformas),
+          el("section", { class: "panel" }, el("h2", { text: "Calificaciones" }), calificaciones),
+          el("section", { class: "panel" }, el("h2", { text: "Duración (How Long To Beat)" }),
+            el("p", { class: "nota", text: juego.duracion_nota })))));
+  }
+  dibujar();
 }
 
 // ---------------------------------------------------------------------------------------------

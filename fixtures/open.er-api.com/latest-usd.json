@@ -1,0 +1,12 @@
+{
+ "result": "success",
+ "provider": "https://www.exchangerate-api.com",
+ "time_last_update_unix": 1794355352,
+ "time_last_update_utc": "Wed, 11 Nov 2026 00:02:32 +0000",
+ "base_code": "USD",
+ "rates": {
+  "USD": 1,
+  "CRC": 452.888176,
+  "EUR": 0.893927
+ }
+}

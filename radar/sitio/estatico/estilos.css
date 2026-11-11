@@ -50,7 +50,16 @@ header.barra nav { display: flex; gap: 6px; flex-wrap: wrap; }
 header.barra nav a { padding: 5px 12px; border-radius: 999px; border: 1px solid transparent; text-decoration: none; font-weight: 600; }
 header.barra nav a:hover { background: var(--chip); }
 header.barra nav a[aria-current="page"] { background: var(--chip); border-color: var(--borde); color: var(--texto); }
-header.barra .tema { margin-left: auto; border-radius: 999px; padding: 5px 14px; }
+header.barra .acciones { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+header.barra .tema { border-radius: 999px; padding: 5px 14px; }
+/* Selector de moneda: pastilla dividida en tres; la opción activa usa el color de acento del tema. */
+.moneda { display: inline-flex; border: 1px solid var(--borde); border-radius: 999px; overflow: hidden; background: var(--tarjeta); }
+.moneda button { border: 0; border-radius: 0; padding: 5px 10px; background: transparent; }
+.moneda button + button { border-left: 1px solid var(--borde); }
+.moneda button:hover { background: var(--chip); }
+.moneda button[aria-pressed="true"] { background: var(--acento); color: var(--tarjeta); font-weight: 700; }
+.panel-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.panel-cabecera h2 { margin: 0; }
 header.barra .tema:hover { background: var(--chip); }
 main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 footer { width: calc(100% - 32px); margin: 0 auto 16px; padding: 12px 16px; color: var(--suave); font-size: 13px; }

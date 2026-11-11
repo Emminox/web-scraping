@@ -115,5 +115,46 @@ class PruebasBestBuy(unittest.TestCase):
         self.assertEqual(bestbuy._plataforma("Elden Ring - PlayStation 5"), "ps5")
 
 
+class PruebasTipoCambio(unittest.TestCase):
+    def test_parsea_colones_y_euros(self):
+        from radar.fuentes import tipo_cambio
+        tc = tipo_cambio.parsear(leer("open.er-api.com/latest-usd.json"))
+        self.assertEqual(tc.tasas, {"CRC": 452.888176, "EUR": 0.893927})
+        self.assertEqual(tc.actualizado_en, "2026-11-11T00:02:32+00:00")
+
+    def test_respuesta_invalida(self):
+        from radar.fuentes import tipo_cambio
+        with self.assertRaises(ValueError):
+            tipo_cambio.parsear(b'{"result": "error", "error-type": "unsupported-code"}')
+        with self.assertRaises(ValueError):
+            tipo_cambio.parsear(b'{"result": "success", "base_code": "USD", "rates": {"EUR": 0.9}, "time_last_update_unix": 1}')
+
+    def test_si_falla_conserva_el_archivo_anterior(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from radar.fuentes import tipo_cambio
+        from radar.red import ErrorTemporal
+
+        class ClienteQueFalla:
+            def obtener(self, url):
+                raise ErrorTemporal("sin red")
+
+        class ClienteBueno:
+            def obtener(self, url):
+                class R:
+                    cuerpo = leer("open.er-api.com/latest-usd.json")
+                return R()
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            sitio = Path(carpeta)
+            self.assertIsNotNone(tipo_cambio.actualizar_tipo_cambio(ClienteBueno(), sitio))
+            self.assertIsNone(tipo_cambio.actualizar_tipo_cambio(ClienteQueFalla(), sitio))
+            publicado = json.loads((sitio / "datos" / "tipo_cambio.json").read_text(encoding="utf-8"))
+            self.assertEqual(publicado["tasas"]["CRC"], 452.888176)          # Se conservó el anterior.
+            self.assertEqual(publicado["atribucion"]["texto"], "Rates By Exchange Rate API")
+            self.assertEqual(set(publicado["tasas"]), {"CRC", "EUR"})        # Solo las tasas que usa el sitio.
+
+
 if __name__ == "__main__":
     unittest.main()
