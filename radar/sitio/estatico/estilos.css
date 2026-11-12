@@ -7,6 +7,9 @@
   /* Gráfico del historial (diseño inspirado en DekuDeals) y su recuadro flotante. */
   --graf-fondo: #eef1f5; --graf-area: #ffffff; --graf-linea: #1d2330; --graf-eje: #5b6475; --graf-eje-fuerte: #1d2330;
   --recuadro-fondo: rgba(255, 255, 255, .97); --recuadro-borde: #dde1e8; --recuadro-sombra: 0 4px 12px rgba(20, 30, 50, .15);
+  /* Títulos de juegos como enlaces (estilo DekuDeals). En claro, el celeste de DekuDeals un paso más oscuro: el
+     original (#09b0d9) casi no se lee sobre blanco. */
+  --titulo-juego: #067490; --titulo-juego-hover: #04566b;
   color-scheme: light;
 }
 /* Modo oscuro: lo pide el sistema (y el usuario no eligió claro) o el usuario lo eligió con el botón del encabezado.
@@ -18,6 +21,7 @@
   --sombra: 0 1px 3px rgba(0, 0, 0, .3);
   --graf-fondo: #14171c; --graf-area: #191d24; --graf-linea: #ffffff; --graf-eje: #aab2c0; --graf-eje-fuerte: #e7eaf0;
   --recuadro-fondo: rgba(20, 23, 28, .95); --recuadro-borde: #2c3340; --recuadro-sombra: 0 4px 12px rgba(0, 0, 0, .35);
+  --titulo-juego: #09b0d9; --titulo-juego-hover: #067490;  /* Los mismos de DekuDeals (tema oscuro). */
   color-scheme: dark;
   }
 }
@@ -27,6 +31,7 @@
   --sombra: 0 1px 3px rgba(0, 0, 0, .3);
   --graf-fondo: #14171c; --graf-area: #191d24; --graf-linea: #ffffff; --graf-eje: #aab2c0; --graf-eje-fuerte: #e7eaf0;
   --recuadro-fondo: rgba(20, 23, 28, .95); --recuadro-borde: #2c3340; --recuadro-sombra: 0 4px 12px rgba(0, 0, 0, .35);
+  --titulo-juego: #09b0d9; --titulo-juego-hover: #067490;  /* Los mismos de DekuDeals (tema oscuro). */
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -92,8 +97,11 @@ footer { width: calc(100% - 32px); margin: 0 auto 16px; padding: 12px 16px; colo
 }
 .portada img.completa { object-fit: contain; }
 .card .cuerpo { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.card h3 { font-size: 15px; margin: 0; line-height: 1.3; }
-.card h3 a { color: var(--texto); text-decoration: none; }
+.card h3 { font-size: 16px; margin: 0; line-height: 1.3; }
+/* Nombre del juego como enlace, como en DekuDeals: celeste, sin subrayado; al pasar el cursor se oscurece. También
+   se resalta al pasar por la portada, porque las dos llevan a la misma página. */
+.card h3 a { color: var(--titulo-juego); text-decoration: none; transition: color .12s ease-in-out; }
+.card h3 a:hover, .card h3 a:focus-visible, .card:has(.portada:hover) h3 a { color: var(--titulo-juego-hover); }
 .precio { font-size: 18px; font-weight: 700; }
 .tachado { text-decoration: line-through; color: var(--suave); font-size: 13px; margin-left: 6px; }
 .chips { display: flex; gap: 4px; flex-wrap: wrap; }
