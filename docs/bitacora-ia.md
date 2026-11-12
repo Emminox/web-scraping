@@ -70,3 +70,12 @@ Recordatorio: las predicciones de rendimiento del Hito 1 se hacen **sin IA**.
 - **Se aceptó / se modificó y por qué:** _(completar por el equipo)_
 - **Cómo se verificó:** `py -3.14 -m unittest` (113 pruebas), 2400 combinaciones de filtros comparadas en el
   navegador contra un cálculo independiente, corridas en vivo #9 y #10.
+
+### 2026-11-11 (noche) · Emminox · Enlaces de CheapShark que no redirigían
+- **Herramienta:** Claude Code (Claude Opus 5.5).
+- **Se pidió:** corregir los enlaces de tiendas de PC (GameBillet, Fanatical…) que dejaban al usuario en CheapShark.
+- **Defecto introducido por la IA, detectado por el usuario:** el `dealID` de la API ya viene codificado para URL
+  y el código lo volvía a codificar (`%252F`); CheapShark no reconocía la oferta. Se usa tal cual (como en su
+  documentación) y una migración del esquema (v4) corrige los 656 enlaces ya guardados.
+- **Se aceptó / se modificó y por qué:** _(completar por el equipo)_
+- **Cómo se verificó:** pruebas del parser y de la migración (116 pruebas); 0 enlaces con doble codificación en el sitio.

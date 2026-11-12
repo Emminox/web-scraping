@@ -14,6 +14,7 @@ CADA tienda. Se excluyen Steam y GOG porque ya se consultan directamente.
 from __future__ import annotations
 
 import json
+import re
 from urllib.parse import quote
 
 from radar.fuentes.modelos import Candidato, a_centavos
@@ -40,6 +41,18 @@ TIENDAS = {
 CANTIDAD_RESULTADOS = 60  # Máximo que permite la API por página.
 
 
+def _deal_id_para_url(deal_id: str) -> str:
+    """El dealID de la API YA viene codificado para URL ("…%2F…%3D"): se usa tal cual, como en la documentación.
+
+    Antes se volvía a codificar ("%252F") y CheapShark no reconocía la oferta: en vez de redirigir a la tienda
+    (GameBillet, Fanatical…) dejaba al usuario en su propia página. Solo si trae caracteres fuera de los seguros
+    para una URL (no debería pasar) se codifica, para no romper el enlace.
+    """
+    if re.fullmatch(r"[A-Za-z0-9%._~-]+", deal_id):
+        return deal_id
+    return quote(deal_id, safe="")
+
+
 def url_busqueda(titulo: str) -> str:
     return f"https://www.cheapshark.com/api/1.0/deals?title={quote(titulo)}&pageSize={CANTIDAD_RESULTADOS}"
 
@@ -59,7 +72,7 @@ def parsear_busqueda(cuerpo: bytes) -> tuple[Candidato, ...]:
                 fuente=tienda[0],
                 titulo=titulo,
                 # Enlace de redirección de CheapShark: la forma que su documentación pide para enlazar una oferta.
-                url=f"https://www.cheapshark.com/redirect?dealID={quote(oferta_id, safe='')}",
+                url=f"https://www.cheapshark.com/redirect?dealID={_deal_id_para_url(oferta_id)}",
                 plataforma="pc",
                 formato="digital",
                 precio_actual_centavos=actual,

@@ -1,8 +1,9 @@
 -- =============================================================================
 -- Esquema de la base de datos del Radar de Ofertas Multinúcleo (ADR-003: SQLite)
 -- =============================================================================
--- Versión del esquema: 3 (se guarda en PRAGMA user_version; ver radar/bd/conexion.py).
--- Cambios: v2 agrega ejecucion_etapa.ventana_segundos; v3 agrega producto_tienda.imagen_url
+-- Versión del esquema: 4 (se guarda en PRAGMA user_version; ver radar/bd/conexion.py).
+-- Cambios: v2 agrega ejecucion_etapa.ventana_segundos; v3 agrega producto_tienda.imagen_url;
+-- v4 corrige los enlaces de CheapShark guardados con el dealID codificado dos veces (solo datos)
 -- (migraciones automáticas desde versiones anteriores).
 -- Explicación completa y diagrama: docs/esquema-bd.md
 --

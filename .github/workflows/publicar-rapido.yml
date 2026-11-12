@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "radar/sitio/**"   # Páginas, estilos, app.js y generar.py: lo que cambia cuando se cambia el diseño.
+      - "radar/bd/**"      # Migraciones de la base: al generar se aplican a la copia de la Release y cambian lo publicado.
   workflow_dispatch:
 
 permissions:

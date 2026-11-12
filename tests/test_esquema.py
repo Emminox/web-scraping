@@ -169,5 +169,33 @@ class PruebasArchivo(unittest.TestCase):
                 abrir_bd(ruta)
 
 
+    def test_migracion_v4_corrige_enlaces_de_cheapshark(self):
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta = Path(carpeta) / "radar.sqlite"
+            bd = abrir_bd(ruta)
+            fuente = bd.execute("SELECT id FROM fuente LIMIT 1").fetchone()
+            if fuente is None:
+                with bd:
+                    bd.execute("INSERT INTO fuente (codigo, nombre, tipo, dominio, metodo) "
+                               "VALUES ('gamebillet', 'GameBillet', 'minorista', 'www.cheapshark.com', 'api')")
+                fuente = bd.execute("SELECT id FROM fuente LIMIT 1").fetchone()
+            malo = "https://www.cheapshark.com/redirect?dealID=Sph%252FtOca%253D"
+            otro = "https://store.steampowered.com/app/1/Juego%2520Raro/"   # De otra tienda: no se toca.
+            with bd:
+                for url in (malo, otro):
+                    bd.execute("INSERT INTO producto_tienda (fuente_id, url, titulo_en_tienda, formato, "
+                               "visto_por_primera_vez) VALUES (?, ?, 'X', 'digital', '2026-11-11T00:00:00+00:00')",
+                               (fuente[0], url))
+                bd.execute("PRAGMA user_version = 3")  # Simula una base guardada antes de la corrección.
+            bd.close()
+            bd = abrir_bd(ruta)
+            try:
+                urls = {r[0] for r in bd.execute("SELECT url FROM producto_tienda")}
+                self.assertEqual(urls, {"https://www.cheapshark.com/redirect?dealID=Sph%2FtOca%3D", otro})
+                self.assertEqual(bd.execute("PRAGMA user_version").fetchone()[0], 4)
+            finally:
+                bd.close()
+
+
 if __name__ == "__main__":
     unittest.main()

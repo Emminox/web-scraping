@@ -96,7 +96,12 @@ class PruebasCheapShark(unittest.TestCase):
         self.assertTrue(fuentes <= {codigo for codigo, _, _ in cheapshark.TIENDAS.values()})
         for c in candidatos:
             self.assertTrue(c.url.startswith("https://www.cheapshark.com/redirect?dealID="))
+            self.assertNotIn("%25", c.url)  # El dealID ya viene codificado: no se codifica dos veces.
             self.assertEqual((c.plataforma, c.formato), ("pc", "digital"))
+        # El dealID va tal cual lo entrega la API (como en su documentación): así CheapShark redirige a la tienda.
+        import json
+        crudos = {o["dealID"] for o in json.loads(leer("www.cheapshark.com/deals-hades.json"))}
+        self.assertTrue(all(c.url.split("dealID=", 1)[1] in crudos for c in candidatos))
         hades2 = next(c for c in candidatos if c.titulo == "Hades II")
         self.assertEqual((hades2.fuente, hades2.precio_actual_centavos), ("epic", 2999))
 

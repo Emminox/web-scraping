@@ -75,3 +75,8 @@ erDiagram
    en los spikes que cada tienda muestra USD.
 5. **Formato en minoristas.** Un minorista puede vender físico y digital del mismo juego: cada uno es un
    `producto_tienda` distinto (URL distinta). Confirmar en los spikes.
+
+## Versión 4 (2026-11-11)
+Migración solo de datos: los enlaces de CheapShark (`producto_tienda.url`) se habían guardado con el `dealID`
+codificado dos veces (`%252F` en vez de `%2F`) y CheapShark no redirigía a la tienda. La migración 3 → 4 los
+corrige en las bases existentes (se aplica sola al abrirlas, también la de la Release "datos").

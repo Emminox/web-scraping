@@ -18,7 +18,7 @@ from pathlib import Path
 
 # Versión actual del esquema. Si se cambia esquema.sql de forma incompatible, se sube este número y
 # se escribe una migración; así una base vieja no se usa por error con código nuevo.
-VERSION_ESQUEMA = 3
+VERSION_ESQUEMA = 4
 
 RUTA_ESQUEMA = Path(__file__).with_name("esquema.sql")
 
@@ -28,6 +28,11 @@ MIGRACIONES = {
     1: ["ALTER TABLE ejecucion_etapa ADD COLUMN ventana_segundos REAL NOT NULL DEFAULT 0 "
         "CHECK (ventana_segundos >= 0)"],
     2: ["ALTER TABLE producto_tienda ADD COLUMN imagen_url TEXT"],
+    # v4: los enlaces de CheapShark se guardaban con el dealID codificado DOS veces ("%252F" en vez de "%2F") y
+    # CheapShark no reconocía la oferta: en vez de redirigir a la tienda dejaba al usuario en su propia página.
+    # Se corrigen los ya guardados (la URL identifica al producto; si no, cada oferta quedaría duplicada).
+    3: ["UPDATE producto_tienda SET url = replace(url, '%25', '%') "
+        "WHERE url LIKE 'https://www.cheapshark.com/redirect?dealID=%' AND instr(url, '%25') > 0"],
 }
 
 
