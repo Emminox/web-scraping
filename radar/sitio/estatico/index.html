@@ -13,35 +13,33 @@
     <h1>Radar de Ofertas</h1>
     <nav><a href="index.html" aria-current="page">Ofertas</a><a href="metricas.html">Panel de métricas</a></nav>
     <div class="acciones"><div id="moneda-global"></div><button id="tema" type="button" class="tema">Modo claro</button></div>
+  </div>
+  <!-- Filtros en una barra horizontal DENTRO del encabezado fijo: siguen visibles al bajar por los juegos. -->
+  <div class="filtros" role="search" aria-label="Filtros">
+    <div class="campo buscar"><label for="buscar">Buscar</label><input id="buscar" type="search" placeholder="Título…"></div>
+    <div class="campo"><label for="filtro-tipo">Tipo</label>
+      <select id="filtro-tipo"><option value="">Todos</option><option value="juego">Juego</option>
+        <option value="juego_dlc">Juego + DLC</option><option value="dlc">DLC</option><option value="otro">Otro (paquete)</option></select></div>
+    <div class="campo"><label for="filtro-plataforma">Plataforma</label>
+      <select id="filtro-plataforma"><option value="">Todas</option></select></div>
+    <div class="campo"><label for="filtro-formato">Formato</label>
+      <select id="filtro-formato"><option value="">Todos</option><option value="digital">Digital</option><option value="fisico">Físico</option></select></div>
+    <div class="campo"><label for="filtro-tienda">Tienda</label>
+      <select id="filtro-tienda"><option value="">Todas</option></select></div>
+    <div class="campo orden"><label for="orden">Ordenar por</label>
+      <select id="orden">
+        <option value="descuento">Mayor % de descuento</option><option value="precio">Mejor precio</option>
+        <option value="nombre">Nombre</option><option value="calificacion">Metascore</option>
+      </select></div>
+    <label class="casilla" for="solo-ofertas"><input id="solo-ofertas" type="checkbox"> Solo en oferta</label>
+    <button id="limpiar" type="button" class="limpiar">Limpiar filtros</button>
   </div></header>
   <main>
-    <div class="diseno">
-      <aside class="filtros" aria-label="Filtros">
-        <label for="buscar">Buscar</label>
-        <input id="buscar" type="search" placeholder="Título…">
-        <label for="filtro-tipo">Tipo</label>
-        <select id="filtro-tipo"><option value="">Todos</option><option value="juego">Juego</option>
-          <option value="juego_dlc">Juego + DLC</option><option value="dlc">DLC</option><option value="otro">Otro (paquete)</option></select>
-        <label for="filtro-plataforma">Plataforma</label>
-        <select id="filtro-plataforma"><option value="">Todas</option></select>
-        <label for="filtro-formato">Formato</label>
-        <select id="filtro-formato"><option value="">Todos</option><option value="digital">Digital</option><option value="fisico">Físico</option></select>
-        <label for="filtro-tienda">Tienda</label>
-        <select id="filtro-tienda"><option value="">Todas</option></select>
-        <label for="solo-ofertas"><input id="solo-ofertas" type="checkbox" style="width:auto"> Solo en oferta</label>
-        <label for="orden">Ordenar por</label>
-        <select id="orden">
-          <option value="descuento">Mayor % de descuento</option><option value="precio">Mejor precio</option>
-          <option value="nombre">Nombre</option><option value="calificacion">Metascore</option>
-        </select>
-        <button id="limpiar" type="button" class="limpiar">Limpiar filtros</button>
-      </aside>
-      <section>
-        <p class="resumen" id="resumen">Cargando…</p>
-        <div class="rejilla" id="rejilla"></div>
-        <div class="paginacion"><button id="anterior">← Anterior</button><span id="pagina"></span><button id="siguiente">Siguiente →</button></div>
-      </section>
-    </div>
+    <section>
+      <p class="resumen" id="resumen">Cargando…</p>
+      <div class="rejilla" id="rejilla"></div>
+      <div class="paginacion"><button id="anterior">← Anterior</button><span id="pagina"></span><button id="siguiente">Siguiente →</button></div>
+    </section>
   </main>
   <footer><span id="actualizado"></span><span id="atribucion"></span> · Precios en USD de tiendas de EE. UU. · Proyecto académico IC-3101 (TEC).</footer>
   <script src="app.js"></script>

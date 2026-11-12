@@ -605,11 +605,27 @@ function enlaceExterno(url, texto) {
 
 const NOMBRES_TIPO = { juego: "Juego", juego_dlc: "Juego + DLC", dlc: "DLC", otro: "Otro (paquete)" };
 
+/** Botón "Volver a ofertas". Si se llegó desde la página de ofertas, vuelve atrás en el historial: así se conserva
+ *  la página de resultados y la posición en la que estaba. Si se entró directo (un enlace compartido), abre la página
+ *  de ofertas, que igual recuerda los filtros guardados. */
+function botonVolver() {
+  const boton = el("a", { href: "index.html", class: "volver", text: "← Volver a ofertas" });
+  boton.addEventListener("click", (evento) => {
+    let desdeOfertas = false;
+    try {
+      const anterior = new URL(document.referrer);
+      desdeOfertas = anterior.origin === location.origin && /\/(index\.html)?$/.test(anterior.pathname);
+    } catch { /* Sin página anterior. */ }
+    if (desdeOfertas && history.length > 1) { evento.preventDefault(); history.back(); }
+  });
+  return boton;
+}
+
 async function paginaDetalle() {
   const contenido = $("#contenido");
   const clave = new URLSearchParams(location.search).get("clave") || "";
   if (!/^[a-z0-9-]+$/.test(clave)) { // Solo claves válidas: evita pedir rutas arbitrarias.
-    contenido.replaceChildren(el("p", { class: "error", text: "Juego no válido." }));
+    contenido.replaceChildren(botonVolver(), el("p", { class: "error", text: "Juego no válido." }));
     return;
   }
   let juego;
@@ -658,6 +674,7 @@ async function paginaDetalle() {
             + "El sitio guarda los precios de cada actualización diaria; el gráfico aparecerá cuando haya al menos dos días."
           : "Sin historial de precios." });
     contenido.replaceChildren(
+      botonVolver(),
       el("div", { class: "detalle" },
         el("div", { class: "portada" }, portada),
         el("div", {},
