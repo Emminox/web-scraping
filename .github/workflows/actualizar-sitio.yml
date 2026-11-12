@@ -6,7 +6,13 @@ name: Actualizar sitio
 
 on:
   schedule:
-    - cron: "0 12 * * *"   # Todos los días a las 12:00 UTC (6:00 en Costa Rica).
+    # Todos los días a las 11:17 UTC (5:17 en Costa Rica). Un minuto "raro" a propósito: GitHub avisa que en las horas
+    # en punto hay tanta carga que las ejecuciones programadas se retrasan o se descartan (el 2026-11-12, la de las
+    # 12:00 UTC no corrió).
+    - cron: "17 11 * * *"
+    # UNA SOLA VEZ (12 nov, 15:40 UTC): comprueba que el horario quedó registrado y hace la actualización que no corrió
+    # esta mañana. Se quita en cuanto se ejecute (si no, se repetiría el 12 de noviembre del año siguiente).
+    - cron: "40 15 12 11 *"
   workflow_dispatch:        # Permite ejecutarlo a mano desde la pestaña Actions.
 
 permissions:
