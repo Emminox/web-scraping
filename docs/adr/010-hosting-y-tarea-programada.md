@@ -31,5 +31,13 @@ volver a descargar las tiendas (~2 min). Se lanza solo al subir cambios en `rada
 concurrencia con "Actualizar sitio": si la corrida completa está en curso, espera a que termine, así publica con
 la base del día y su diseño no queda pisado por la corrida completa (que usa el código de cuando empezó).
 
+## Cambio (2026-11-12): horario nocturno con respaldos
+La ejecución programada de las 12:00 UTC del 12 nov no corrió (GitHub descarta ejecuciones programadas con mucha
+carga, sobre todo en las horas en punto, y el horario no se había vuelto a registrar tras pasar el repositorio a
+público). Ahora "Actualizar sitio" corre de noche, en minutos poco usados: 23:17 (principal), 00:43 y 02:13 (hora de
+Costa Rica). Los dos últimos son respaldos: un job previo ("comprobar") consulta la API de GitHub y solo actualiza si
+esa noche todavía no hubo una ejecución exitosa. Así una ejecución descartada no deja el día sin datos y no se
+duplican corridas.
+
 ## Estado
 Aceptada. Requiere activar Settings → Pages → Source: GitHub Actions.

@@ -5,14 +5,18 @@
 name: Actualizar sitio
 
 on:
+  # De noche (hora de Costa Rica = UTC − 6). Minutos "raros" a propósito: GitHub avisa que en las horas en punto hay
+  # tanta carga que las ejecuciones programadas se retrasan o se DESCARTAN (el 2026-11-12, la de las 12:00 UTC no
+  # corrió). Como ninguna hora está garantizada, hay dos respaldos: cada uno corre solo si esa noche todavía no hubo
+  # una actualización exitosa (ver el job "comprobar").
   schedule:
-    # Todos los días a las 11:17 UTC (5:17 en Costa Rica). Un minuto "raro" a propósito: GitHub avisa que en las horas
-    # en punto hay tanta carga que las ejecuciones programadas se retrasan o se descartan (el 2026-11-12, la de las
-    # 12:00 UTC no corrió).
-    - cron: "17 11 * * *"
+    - cron: "17 5 * * *"    # Principal: 23:17 en Costa Rica.
+    - cron: "43 6 * * *"    # Respaldo 1: 00:43.
+    - cron: "13 8 * * *"    # Respaldo 2: 02:13.
   workflow_dispatch:        # Permite ejecutarlo a mano desde la pestaña Actions.
 
 permissions:
+  actions: read     # Para que los respaldos vean si esa noche ya hubo una actualización exitosa.
   contents: write   # Para guardar la base de datos como asset de la Release "datos".
   pages: write      # Para publicar en GitHub Pages.
   id-token: write   # Requerido por actions/deploy-pages.
@@ -23,7 +27,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Decide si hace falta actualizar. Siempre sí, salvo en los RESPALDOS: si desde las 05:00 UTC de hoy (23:00 en Costa
+  # Rica) ya hubo una ejecución exitosa, el respaldo no hace nada. Si la principal sigue corriendo cuando llega un
+  # respaldo, el respaldo espera en fila (mismo grupo de concurrencia) y, al tocarle, ve que ya hubo una exitosa.
+  comprobar:
+    runs-on: ubuntu-latest
+    outputs:
+      actualizar: ${{ steps.decidir.outputs.actualizar }}
+    steps:
+      - id: decidir
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HORARIO: ${{ github.event.schedule }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "$HORARIO" = "17 5 * * *" ]; then
+            echo "actualizar=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          desde="$(date -u +%Y-%m-%d)T05:00:00Z"
+          exitosas=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/actualizar-sitio.yml/runs?status=success&created=%3E%3D$desde" --jq '.total_count')
+          if [ "${exitosas:-0}" -gt 0 ]; then
+            echo "Ya hubo una actualización exitosa desde $desde: este respaldo no hace nada."
+            echo "actualizar=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No hubo actualización esta noche: el respaldo la hace."
+            echo "actualizar=true" >> "$GITHUB_OUTPUT"
+          fi
+
   actualizar:
+    needs: comprobar
+    if: needs.comprobar.outputs.actualizar == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 240  # La primera corrida (sin caché) descarga todo; Best Buy y CheapShark son lentos a propósito.
     steps:
