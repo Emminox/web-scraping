@@ -32,9 +32,9 @@
 * { box-sizing: border-box; }
 /* Campos y botones no heredan la fuente por defecto: sin esto seguirían en la fuente del sistema. */
 button, input, select, textarea { font: inherit; }
-/* Consolas en todo el sitio. Es una fuente de Windows (no se puede servir como fuente web por su licencia):
-   en otros sistemas se usa la monoespaciada más parecida disponible. */
-body { margin: 0; font: 15px/1.5 Consolas, "Cascadia Mono", Menlo, Monaco, "Liberation Mono", "Courier New", monospace;
+/* Misma fuente que DekuDeals (sitio de referencia del profesor): la del sistema de cada dispositivo, con la lista de
+   Bootstrap. Segoe UI en Windows, San Francisco en Mac/iPhone, Roboto en Android. No se descarga ninguna fuente. */
+body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
        background: var(--fondo); color: var(--texto); }
 a { color: var(--acento); }
 /* Encabezado y pie como "tarjetas" flotantes: mismo borde, esquinas y sombra que los paneles, con colores del
@@ -44,7 +44,9 @@ header.barra .contenido, footer {
   max-width: 1168px; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; box-shadow: var(--sombra);
 }
 header.barra .contenido { margin: 0 auto; padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-header.barra h1 { font-size: 18px; margin: 0; }
+/* Títulos con grosor 500, como DekuDeals (Bootstrap), en lugar de la negrita completa del navegador. */
+h1, h2, h3, h4 { font-weight: 500; }
+header.barra h1 { font-size: 20px; margin: 0; }
 /* Menú en pastillas redondeadas; la página actual queda resaltada (aria-current en el HTML). */
 header.barra nav { display: flex; gap: 6px; flex-wrap: wrap; }
 header.barra nav a { padding: 5px 12px; border-radius: 999px; border: 1px solid transparent; text-decoration: none; font-weight: 600; }
@@ -70,7 +72,7 @@ footer { width: calc(100% - 32px); margin: 0 auto 16px; padding: 12px 16px; colo
 /* Anchos base pensados para que en escritorio (≥ 1200 px) todo quepa en UNA fila; en pantallas medianas pasa a dos. */
 .filtros .campo { display: flex; flex-direction: column; gap: 3px; flex: 1 1 100px; min-width: 0; }
 .filtros .campo.buscar { flex: 1.6 1 150px; }
-.filtros .campo.orden { flex: 1.4 1 210px; }  /* "Mayor % de descuento" no se corta con Consolas. */
+.filtros .campo.orden { flex: 1.4 1 180px; }
 .filtros label { font-size: 12px; color: var(--suave); }
 .filtros select, .filtros input[type="search"] { width: 100%; padding: 6px 7px; border-radius: 6px; border: 1px solid var(--borde);
                                                background: var(--fondo); color: var(--texto); }
