@@ -38,8 +38,8 @@ body { margin: 0; font: 15px/1.5 Consolas, "Cascadia Mono", Menlo, Monaco, "Libe
        background: var(--fondo); color: var(--texto); }
 a { color: var(--acento); }
 /* Encabezado y pie como "tarjetas" flotantes: mismo borde, esquinas y sombra que los paneles, con colores del
-   tema. El encabezado sigue fijo arriba; la franja de fondo detrás evita que el contenido se vea al desplazarse. */
-header.barra { background: var(--fondo); position: sticky; top: 0; z-index: 5; padding: 12px 16px 0; }
+   tema. El encabezado queda en su lugar, arriba de la página (no acompaña al desplazarse: pedido del equipo). */
+header.barra { padding: 12px 16px 8px; }
 header.barra .contenido, footer {
   max-width: 1168px; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; box-shadow: var(--sombra);
 }
@@ -106,10 +106,6 @@ button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--borde); 
 button:disabled { opacity: .4; cursor: default; }
 .filtros .limpiar { flex: 0 0 auto; border-radius: 999px; padding: 6px 14px; }
 .filtros .limpiar:hover { background: var(--chip); }
-/* El encabezado fijo deja un margen inferior para que las tarjetas no asomen pegadas a la barra de filtros. */
-header.barra { padding-bottom: 8px; }
-/* En celular el encabezado (con los filtros) ocuparía media pantalla: ahí deja de ser fijo. */
-@media (max-width: 760px) { header.barra { position: static; } }
 /* Botón para salir de la página de un juego. */
 .volver { display: inline-block; margin-bottom: 14px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--borde);
           background: var(--tarjeta); color: var(--texto); text-decoration: none; font-weight: 600; box-shadow: var(--sombra); }
