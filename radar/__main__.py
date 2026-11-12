@@ -38,6 +38,10 @@ def main(argumentos: list[str] | None = None) -> int:
     p_ejecutar.add_argument("--plataformas", type=_lista, help="plataformas de Metacritic, separadas por comas")
     p_ejecutar.add_argument("--paginas", type=int, help="páginas del listado por plataforma")
     p_ejecutar.add_argument("--por-pagina", type=int, help="solo los primeros N juegos de cada página (pruebas)")
+    p_ejecutar.add_argument("--solo-fuentes", type=_lista,
+                            help="solo estas tiendas, separadas por comas (p. ej. steam,cheapshark)")
+    p_ejecutar.add_argument("--complementar", action="store_true",
+                            help="agrega los precios a la última ejecución en vivo en vez de crear otra")
 
     p_sitio = sub.add_parser("sitio", help="regenera el sitio desde la base de datos")
     p_sitio.add_argument("--fuente", choices=("vivo", "replay"), default="vivo")
@@ -66,6 +70,8 @@ def main(argumentos: list[str] | None = None) -> int:
         # None = usar las páginas de cada plataforma según config.toml ([descubrimiento.paginas]).
         paginas_por_plataforma=opciones.paginas,
         por_pagina=opciones.por_pagina,
+        solo_fuentes=opciones.solo_fuentes,
+        complementar=opciones.complementar,
     ))
     resultado = corrida.resultado
     print(f"Ejecución #{corrida.ejecucion_id} · modo {resultado.modo} · datos {opciones.fuente or config.ejecucion.fuente}")

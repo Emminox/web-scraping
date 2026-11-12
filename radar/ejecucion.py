@@ -75,6 +75,12 @@ class OpcionesEjecucion:
     plataformas: tuple[str, ...]      # Plataformas de Metacritic a recorrer.
     paginas_por_plataforma: int | None = None  # Si se indica (--paginas), reemplaza la configuración de TODAS.
     por_pagina: int | None = None     # Para pruebas rápidas: solo los primeros N juegos de cada página.
+    # Solo estas tiendas (códigos de fuente, p. ej. ("steam", "cheapshark")); None = todas. Sirve para completar desde
+    # otra máquina las tiendas que bloquean a los servidores de GitHub Actions.
+    solo_fuentes: tuple[str, ...] | None = None
+    # Agrega los precios a la ÚLTIMA ejecución en vivo en vez de crear una nueva. Si se creara una nueva con solo
+    # algunas tiendas, el sitio marcaría como "desactualizados" los precios de las demás (v_ultimo_precio).
+    complementar: bool = False
 
 
 @dataclass(frozen=True)
@@ -177,6 +183,8 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
     def fuentes_de(juego: Juego) -> list[tuple[str, str]]:
         resultado = []
         for fuente in FUENTES_POR_PLATAFORMA.get(juego.plataforma, ()):
+            if opciones.solo_fuentes is not None and fuente not in opciones.solo_fuentes:
+                continue
             if fuente == STEAM:
                 resultado.append((fuente, steam.url_busqueda(juego.titulo)))
             elif fuente == GOG:
@@ -224,6 +232,15 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
         paginas=paginas, descubrir_pagina=descubrir_pagina, fuentes_de=fuentes_de, descargar=descargar,
         parsear=parsear, emparejar=emparejar_juego, persistir=persistidor, publicar=publicar,
     )
+
+
+def _ultima_ejecucion_viva(conexion: sqlite3.Connection) -> int:
+    """La ejecución en vivo más reciente que terminó bien (la que el sitio toma como "actual")."""
+    fila = conexion.execute(
+        "SELECT MAX(id) FROM ejecucion WHERE fuente_datos = 'vivo' AND estado = 'completa'").fetchone()
+    if fila is None or fila[0] is None:
+        raise ValueError("no hay una ejecución en vivo completa que complementar")
+    return fila[0]
 
 
 def _registrar_inicio(conexion: sqlite3.Connection, config: Config, opciones: OpcionesEjecucion) -> int:
@@ -279,7 +296,12 @@ def ejecutar(config: Config, opciones: OpcionesEjecucion) -> ResumenCorrida:
         fuentes = registrar_fuentes(conexion)
         cliente = ClienteHttp(config)
         indice = cargar_indice_nintendo(cliente)
-        ejecucion_id = _registrar_inicio(conexion, config, opciones)
+        if opciones.complementar:
+            ejecucion_id = _ultima_ejecucion_viva(conexion)
+            print(f"Complementando la ejecución #{ejecucion_id} (solo {', '.join(opciones.solo_fuentes or ('todas',))}).",
+                  flush=True)
+        else:
+            ejecucion_id = _registrar_inicio(conexion, config, opciones)
 
         persistidor = Persistidor(ruta_bd, ejecucion_id, fuentes)
         definicion = construir_definicion(config, opciones, cliente, indice, persistidor, ruta_bd, destino_sitio)
@@ -312,7 +334,10 @@ def ejecutar(config: Config, opciones: OpcionesEjecucion) -> ResumenCorrida:
             resueltos = {(d.tarea.juego.clave, d.tarea.fuente) for d in resultado.fallidos} - siguen_fallando
 
         estado = "completa" if resultado.juegos_persistidos > 0 else "fallida"
-        _registrar_fin(conexion, ejecucion_id, resultado, cliente.metricas.instantanea(), resueltos, estado)
+        if not opciones.complementar:
+            # Al complementar no se tocan el estado ni las métricas de la ejecución original: siguen describiendo
+            # esa corrida (las solicitudes de este complemento se ven en la salida de la consola).
+            _registrar_fin(conexion, ejecucion_id, resultado, cliente.metricas.instantanea(), resueltos, estado)
         generar_metricas(conexion, destino_sitio, config.rutas.mediciones, resultado.errores)
         # Tasas para mostrar los precios en colones y euros (solo presentación; los datos siguen en USD, ADR-012).
         actualizar_tipo_cambio(cliente, destino_sitio)
