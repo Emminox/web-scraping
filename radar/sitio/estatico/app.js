@@ -646,6 +646,15 @@ async function paginaDetalle() {
     const local = selectorMoneda(() => dibujar(), "Moneda de los precios (solo esta página)");
     const aviso = moneda === "USD" ? null : el("p", { class: "nota",
       text: "Precios convertidos desde USD con el tipo de cambio del día; las tiendas cobran en USD, así que el monto final puede variar." });
+    // Tiendas con precios regionales (todas las digitales; no Best Buy, que vende solo en EE. UU.). El aviso va siempre,
+    // también en USD: desde Costa Rica Steam cobra otro monto (precio regional, otra moneda e impuestos).
+    const regionales = [...new Set(juego.precios
+      .filter((p) => p.precio_regional ?? p.tienda !== "Best Buy")   // ?? : datos generados antes de este campo.
+      .map((p) => p.tienda))];
+    const avisoRegional = regionales.length === 0 ? null : el("p", { class: "nota aviso-regional",
+      text: `${new Intl.ListFormat("es", { type: "conjunction" }).format(regionales)} ${regionales.length === 1 ? "ajusta" : "ajustan"} `
+        + "el precio según el país desde el que compras (precio regional, moneda e impuestos locales). Aquí se muestran "
+        + "los precios de la tienda de EE. UU.: al abrir el enlace desde Costa Rica u otro país, el precio puede ser distinto." });
 
     const precios = tabla(["Tienda", "Plataforma", "Formato", "Precio", "Regular", "Obtenido"],
       juego.precios.map((p) => [
@@ -682,7 +691,7 @@ async function paginaDetalle() {
           el("p", { class: "nota", text: `Tipo: ${NOMBRES_TIPO[juego.tipo] || juego.tipo}` }),
           el("section", { class: "panel" },
             el("div", { class: "panel-cabecera" }, el("h2", { text: "Precios (de menor a mayor)" }), local),
-            aviso, precios),
+            aviso, avisoRegional, precios),
           el("section", { class: "panel" }, el("h2", { text: "Historial de precios" }), resumenMinimos(juego.minimos), historial),
           el("section", { class: "panel" }, el("h2", { text: "Plataformas y precio de referencia (MSRP)" }), plataformas),
           el("section", { class: "panel" }, el("h2", { text: "Calificaciones" }), calificaciones),

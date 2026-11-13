@@ -43,6 +43,10 @@ NOMBRES_TIENDA = {
     # Tiendas de PC que llegan por CheapShark (ADR-011).
     **{codigo: nombre for codigo, nombre, _ in cheapshark.TIENDAS.values()},
 }
+# Tiendas SIN precios regionales: venden solo en EE. UU. y cobran lo mismo desde cualquier país. Todas las demás
+# (Steam, Nintendo eShop, GOG, Epic, Humble, Fanatical…) ajustan precio, moneda e impuestos al país del comprador:
+# el sitio muestra el precio de EE. UU. y la página del juego lo advierte (desde Costa Rica Steam cobra otro monto).
+TIENDAS_SIN_PRECIO_REGIONAL = frozenset({"bestbuy"})
 NOMBRES_FAMILIA = {"playstation": "PlayStation", "nintendo": "Nintendo", "xbox": "Xbox", "pc": "PC"}
 NOTA_DURACION = ("No disponible: los términos de uso de How Long To Beat prohíben extraer sus datos con "
                  "programas automáticos. Ver ADR-004 y ADR-007 (respaldo con IGDB pendiente de credenciales).")
@@ -347,6 +351,7 @@ def generar_sitio(conexion: sqlite3.Connection, destino: Path, mediciones: Path 
                 "en_oferta": en_oferta(p),
                 "obtenido_en": p["obtenida_en"],
                 "desactualizado": bool(p["desactualizado"]),
+                "precio_regional": p["tienda"] not in TIENDAS_SIN_PRECIO_REGIONAL,
             } for p in precios],
             "plataformas": [{
                 "nombre": plataformas[p["plataforma_codigo"]][0],

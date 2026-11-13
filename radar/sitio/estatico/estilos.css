@@ -168,3 +168,5 @@ svg.grafico text { fill: var(--suave); font-size: 11px; }
 .boton-pdf { display: inline-block; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--borde); background: var(--tarjeta);
              color: var(--acento); text-decoration: none; font-weight: 600; white-space: nowrap; }
 .boton-pdf:hover { background: var(--chip); }
+/* Aviso de precios regionales en la página del juego: resaltado con una barra del color de aviso del tema. */
+.aviso-regional { border-left: 3px solid var(--aviso); padding: 4px 0 4px 10px; margin: 6px 0 10px; }

@@ -132,6 +132,8 @@ class PruebasSitio(BasePrueba):
                          {"url": "https://www.metacritic.com/a/img/x.jpg", "hd": None, "solo_vertical": False})
         detalle = json.loads((destino / "datos" / "juegos" / "hades.json").read_text(encoding="utf-8"))
         self.assertEqual([p["precio"] for p in detalle["precios"]], [1249, 1999])  # De menor a mayor.
+        # Steam y GOG ajustan el precio al país del comprador: la página del juego lo advierte (no Best Buy).
+        self.assertEqual([p["precio_regional"] for p in detalle["precios"]], [True, True])
         for archivo in ("index.html", "juego.html", "metricas.html", "app.js", "estilos.css", "datos/metricas.json"):
             self.assertTrue((destino / archivo).exists(), archivo)
         # Las listas largas del panel van en PDF; el JSON solo lleva el resumen y la ruta del PDF.
