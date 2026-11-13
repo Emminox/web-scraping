@@ -164,3 +164,7 @@ svg.grafico text { fill: var(--suave); font-size: 11px; }
 .lista-columnas li { break-inside: avoid; padding: 2px 0; margin-left: 3.2em; }
 .buscador-lista { width: 100%; max-width: 360px; padding: 7px; border-radius: 6px; border: 1px solid var(--borde);
                   background: var(--fondo); color: var(--texto); margin-top: 6px; }
+/* Descarga de las listas largas del panel en PDF (misma pastilla que los demás botones). */
+.boton-pdf { display: inline-block; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--borde); background: var(--tarjeta);
+             color: var(--acento); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.boton-pdf:hover { background: var(--chip); }

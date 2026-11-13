@@ -696,6 +696,13 @@ async function paginaDetalle() {
 // Panel de métricas
 // ---------------------------------------------------------------------------------------------
 
+/** Botón para descargar la lista completa de una sección del panel en PDF (si la hay). */
+function botonPdf(resumen) {
+  if (!resumen.total || !resumen.pdf) return null;
+  const nombre = resumen.pdf.split("/").pop();
+  return el("a", { class: "boton-pdf", href: resumen.pdf, download: nombre, text: `Descargar PDF (${resumen.total} filas)` });
+}
+
 async function paginaMetricas() {
   const contenido = $("#contenido");
   let m;
@@ -725,17 +732,24 @@ async function paginaMetricas() {
   } else {
     secciones.push(el("section", { class: "panel" }, el("p", { text: "Todavía no hay ejecuciones registradas." })));
   }
-  secciones.push(el("section", { class: "panel" }, el("h2", { text: `Cola de fallidos (${m.fallidos.length})` }),
-    m.fallidos.length ? tabla(["URL", "Error", "Resuelto en el reintento final"], m.fallidos.map((f) => [enlaceExterno(f.url, f.url), f.mensaje, f.resuelto ? "Sí" : "No"]))
+  // Las listas largas (cientos de filas) se descargan en PDF; aquí solo va un resumen por grupo.
+  const fallidos = m.fallidos_resumen || { total: 0, resueltos: 0, por_sitio: [] };
+  secciones.push(el("section", { class: "panel" },
+    el("div", { class: "panel-cabecera" }, el("h2", { text: `Cola de fallidos (${fallidos.total})` }), botonPdf(fallidos)),
+    fallidos.total
+      ? el("div", {},
+          el("p", { class: "nota", text: `${fallidos.resueltos} se resolvieron en el reintento final. La lista completa (juego, URL y detalle) está en el PDF.` }),
+          tabla(["Sitio", "Error", "Cantidad"], fallidos.por_sitio.map((f) => [f.sitio, f.error, f.cantidad]), [2]))
       : el("p", { class: "nota", text: "Sin fallos en la última ejecución." })));
   if (m.errores && m.errores.length) {
     secciones.push(el("section", { class: "panel" }, el("h2", { text: `Errores por etapa (${m.errores.length})` }),
       tabla(["Etapa", "Juego", "Mensaje"], m.errores.map((e) => [e.etapa, e.clave, e.mensaje]))));
   }
-  secciones.push(el("section", { class: "panel" }, el("h2", { text: `Emparejamientos dudosos y ediciones (${m.dudosos.length})` }),
-    el("p", { class: "nota", text: "Dudoso: no se publica su precio. Publicado (edición): la tienda vende una edición con contenido extra (GOTY, Complete…) y se muestra como Juego + DLC." }),
-    m.dudosos.length ? tabla(["Juego", "Tienda", "Producto", "Similitud", "Estado", "Motivo"],
-      m.dudosos.map((d) => [d.juego, d.tienda, enlaceExterno(d.url, d.producto), d.similitud.toFixed(2), d.estado, d.motivo]), [3])
+  const dudosos = m.dudosos_resumen || { total: 0, por_motivo: [] };
+  secciones.push(el("section", { class: "panel" },
+    el("div", { class: "panel-cabecera" }, el("h2", { text: `Emparejamientos dudosos y ediciones (${dudosos.total})` }), botonPdf(dudosos)),
+    el("p", { class: "nota", text: "Dudoso: no se publica su precio. Publicado (edición): la tienda vende una edición con contenido extra (GOTY, Complete…) y se muestra como Juego + DLC. La lista completa, juego por juego, está en el PDF." }),
+    dudosos.total ? tabla(["Estado", "Motivo", "Cantidad"], dudosos.por_motivo.map((d) => [d.estado, d.motivo, d.cantidad]), [2])
       : el("p", { class: "nota", text: "Sin casos dudosos." })));
   // Lista numerada en orden alfabético, en columnas, con un buscador: antes era un solo párrafo con todos los
   // títulos separados por "·" (más de 300), imposible de leer.

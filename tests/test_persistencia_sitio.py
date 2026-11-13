@@ -134,6 +134,13 @@ class PruebasSitio(BasePrueba):
         self.assertEqual([p["precio"] for p in detalle["precios"]], [1249, 1999])  # De menor a mayor.
         for archivo in ("index.html", "juego.html", "metricas.html", "app.js", "estilos.css", "datos/metricas.json"):
             self.assertTrue((destino / archivo).exists(), archivo)
+        # Las listas largas del panel van en PDF; el JSON solo lleva el resumen y la ruta del PDF.
+        metricas = json.loads((destino / "datos" / "metricas.json").read_text(encoding="utf-8"))
+        for clave, pdf in (("dudosos_resumen", "datos/emparejamientos-dudosos.pdf"),
+                           ("fallidos_resumen", "datos/cola-de-fallidos.pdf")):
+            self.assertEqual(metricas[clave]["pdf"], pdf)
+            self.assertTrue((destino / pdf).read_bytes().startswith(b"%PDF"))
+        self.assertNotIn("dudosos", metricas)
 
     def test_tipos_de_la_tarjeta_incluyen_ediciones_con_contenido(self):
         # Una tienda solo vende la edición GOTY: el filtro "Juego + DLC" del sitio debe encontrarlo.

@@ -26,12 +26,13 @@ import re
 import shutil
 import sqlite3
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
 from radar.emparejamiento.normalizar import tipo_por_titulo
 from radar.fuentes import cheapshark
+from radar.sitio.pdf import Columna, tabla_pdf
 from radar.pipeline.modelos import ErrorEtapa
 from radar.red.modelos import ahora_utc
 
@@ -436,8 +437,11 @@ def generar_metricas(conexion: sqlite3.Connection, destino: Path, mediciones: Pa
         solicitudes = [dict(f) for f in conexion.execute(
             "SELECT dominio, exitosas, reintentos, fallidas, desde_almacen, bloqueadas_robots "
             "FROM ejecucion_metricas_dominio WHERE ejecucion_id = ? ORDER BY dominio", (ultima["id"],))]
-        fallidos = [{"url": f["url"], "mensaje": f["mensaje"], "resuelto": bool(f["resuelto_al_final"])}
-                    for f in conexion.execute("SELECT * FROM fallo WHERE ejecucion_id = ? ORDER BY url", (ultima["id"],))]
+        fallidos = [{"url": f["url"], "sitio": f["dominio"], "error": f["tipo_error"], "juego": f["titulo"] or "—",
+                     "detalle": _detalle_fallo(f["mensaje"], f["url"]), "resuelto": bool(f["resuelto_al_final"])}
+                    for f in conexion.execute(
+                        "SELECT f.*, j.titulo_canonico AS titulo FROM fallo f LEFT JOIN juego j ON j.id = f.juego_id "
+                        "WHERE f.ejecucion_id = ?", (ultima["id"],))]
 
     # Casos para revisar: los dudosos (no publicados) y los aceptados con una edición distinta (publicados como
     # "juego + DLC"). El enunciado pide que las ediciones especiales aparezcan marcadas en el panel.
@@ -465,6 +469,10 @@ def generar_metricas(conexion: sqlite3.Connection, destino: Path, mediciones: Pa
     if ruta_juegos.exists():
         publicados = len(json.loads(ruta_juegos.read_text(encoding="utf-8"))["juegos"])
 
+    # Las listas largas van en PDF descargable; en la página solo se muestra un resumen (antes eran tablas de cientos
+    # de filas que hacían eterno el desplazamiento por el panel).
+    pdf_dudosos, pdf_fallidos = _pdf_dudosos(destino, dudosos), _pdf_fallidos(destino, fallidos, ultima)
+
     _escribir_json(destino / "datos" / "metricas.json", {
         "generado_en": ahora_utc().isoformat(),
         "ultima_ejecucion": None if not ultima else {
@@ -472,9 +480,15 @@ def generar_metricas(conexion: sqlite3.Connection, destino: Path, mediciones: Pa
             "modo": ultima["modo"], "fuente_datos": ultima["fuente_datos"], "estado": ultima["estado"]},
         "etapas": etapas,
         "solicitudes": solicitudes,
-        "fallidos": fallidos,
+        "fallidos_resumen": {
+            "total": len(fallidos), "resueltos": sum(f["resuelto"] for f in fallidos), "pdf": pdf_fallidos,
+            "por_sitio": [{"sitio": s, "error": e, "cantidad": n}
+                          for (s, e), n in Counter((f["sitio"], f["error"]) for f in fallidos).most_common()]},
         "errores": [{"etapa": e.etapa, "clave": e.clave, "mensaje": e.mensaje} for e in errores],
-        "dudosos": dudosos,
+        "dudosos_resumen": {
+            "total": len(dudosos), "pdf": pdf_dudosos,
+            "por_motivo": [{"estado": e, "motivo": m, "cantidad": n} for (e, m), n in
+                           Counter((d["estado"], _categoria_motivo(d["motivo"])) for d in dudosos).most_common()]},
         "sin_emparejar": sin_emparejar,
         "cobertura": {"activos": activos, "publicados": publicados, "sin_precio_suficiente": activos - publicados},
         "mediciones": _mediciones(mediciones),
@@ -482,3 +496,64 @@ def generar_metricas(conexion: sqlite3.Connection, destino: Path, mediciones: Pa
                        "duracion_s": duracion(f), "estado": f["estado"]}
                       for f in conexion.execute("SELECT * FROM ejecucion ORDER BY id DESC LIMIT 15")],
     })
+
+
+# ---------------------------------------------------------------------------------------------
+# Listas largas del panel de métricas en PDF
+# ---------------------------------------------------------------------------------------------
+
+_CATEGORIAS_MOTIVO = [
+    ("edición con contenido extra", "Edición con contenido extra (se publica)"),
+    ("paquete con el mismo nombre", "Paquete con el mismo nombre (se publica)"),
+    ("cerca del umbral", "Similitud cerca del umbral"),
+    ("edición distinta", "Edición distinta (remaster…)"),
+    ("posible dlc", "Posible DLC o paquete"),
+    ("clasifica como", "La tienda lo clasifica como otro tipo"),
+    ("plataforma desconocida", "Plataforma desconocida"),
+]
+
+
+def _categoria_motivo(motivo: str | None) -> str:
+    """Motivo de duda agrupado (el texto completo va en el PDF; en la página solo los totales por grupo)."""
+    texto = (motivo or "").lower()
+    return next((nombre for clave, nombre in _CATEGORIAS_MOTIVO if clave in texto), "Otro")
+
+
+def _detalle_fallo(mensaje: str | None, url: str) -> str:
+    """El mensaje del fallo sin la URL repetida (la URL va en su propia columna)."""
+    return (mensaje or "").replace(url, "").replace(": : ", ": ").strip(" :")
+
+
+def _subtitulo(cantidad: int, extra: str) -> str:
+    return f"{cantidad} filas · generado el {ahora_utc().strftime('%Y-%m-%d %H:%M')} UTC · {extra}"
+
+
+def _pdf_dudosos(destino: Path, dudosos: list[dict]) -> str:
+    """PDF de emparejamientos dudosos y ediciones. Devuelve su ruta relativa al sitio."""
+    filas = sorted(dudosos, key=lambda d: (d["estado"] != "Dudoso (no publicado)", d["juego"].casefold(), d["tienda"]))
+    ruta = "datos/emparejamientos-dudosos.pdf"
+    (destino / "datos").mkdir(parents=True, exist_ok=True)
+    (destino / ruta).write_bytes(tabla_pdf(
+        "Emparejamientos dudosos y ediciones",
+        _subtitulo(len(filas), "Dudoso: no se publica su precio. Publicado (edición): se muestra como Juego + DLC."),
+        [Columna("Juego", 34), Columna("Tienda", 16), Columna("Producto en la tienda", 44), Columna("Simil.", 6),
+         Columna("Estado", 21), Columna("Motivo", 40)],
+        [[d["juego"], d["tienda"], d["producto"], f"{d['similitud']:.2f}", d["estado"], d["motivo"] or "—"]
+         for d in filas]))
+    return ruta
+
+
+def _pdf_fallidos(destino: Path, fallidos: list[dict], ultima) -> str:
+    """PDF de la cola de fallidos de la última ejecución. Devuelve su ruta relativa al sitio."""
+    filas = sorted(fallidos, key=lambda f: (f["sitio"] or "", f["error"] or "", f["juego"].casefold(), f["url"]))
+    ruta = "datos/cola-de-fallidos.pdf"
+    (destino / "datos").mkdir(parents=True, exist_ok=True)
+    ejecucion = f"ejecución #{ultima['id']}" if ultima else "sin ejecuciones"
+    (destino / ruta).write_bytes(tabla_pdf(
+        "Cola de fallidos (última ejecución)",
+        _subtitulo(len(filas), f"{ejecucion} · ordenado por sitio y tipo de error"),
+        [Columna("Sitio", 22), Columna("Error", 18), Columna("Juego", 30), Columna("Reintento", 9),
+         Columna("Detalle", 30), Columna("URL", 50)],
+        [[f["sitio"] or "—", f["error"] or "—", f["juego"], "Resuelto" if f["resuelto"] else "No",
+          f["detalle"] or "—", f["url"]] for f in filas]))
+    return ruta
