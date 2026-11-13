@@ -114,6 +114,8 @@ class ConfigEjecucion:
 
     modo: str
     fuente: str
+    # Precios de Steam por lote para los juegos ya emparejados (ADR-013). Solo se aplica en vivo.
+    steam_por_lote: bool = True
 
 
 @dataclass(frozen=True)
@@ -327,6 +329,7 @@ def cargar_config(ruta: Path | str | None = None) -> Config:
             fuente=_eleccion(
                 _requerido(ejecucion, "ejecucion", "fuente"), "ejecucion.fuente", FUENTES_VALIDAS
             ),
+            steam_por_lote=bool(ejecucion.get("steam_precios_por_lote", True)),
         ),
         pipeline=config_pipeline,
         red=config_red,

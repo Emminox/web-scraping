@@ -30,12 +30,13 @@ from radar.emparejamiento.emparejar import emparejar_juego
 from radar.emparejamiento.normalizar import quitar_anio_entre_parentesis, texto_basico
 from radar.fuentes import bestbuy, cheapshark, gog, metacritic, nintendo, steam
 from radar.fuentes.cheapshark import CHEAPSHARK
+from radar.fuentes import steam_lote
 from radar.fuentes.tipo_cambio import actualizar_tipo_cambio
 from radar.fuentes.modelos import BESTBUY, GOG, NINTENDO, STEAM, Candidato
 from radar.persistencia import Persistidor
 from radar.pipeline import DefinicionPipeline, Descarga, Juego, ResultadoEjecucion, TareaDescarga, ejecutar_pipeline
 from radar.pipeline.secuencial import ejecutar_secuencial
-from radar.red import ClienteHttp
+from radar.red import ClienteHttp, ErrorRed
 from radar.red.modelos import ahora_utc
 from radar.sitio import generar_metricas, generar_sitio
 
@@ -141,10 +142,52 @@ def juegos_del_catalogo(config: Config) -> list[Juego]:
     return juegos
 
 
+def precios_steam_por_lote(conexion: sqlite3.Connection, cliente: ClienteHttp, ejecucion_id: int) -> frozenset[str]:
+    """Actualiza por lote el precio de Steam de los juegos ya emparejados (ADR-013).
+
+    Guarda una observación de precio por producto en ``ejecucion_id`` y devuelve las claves de catálogo de los juegos
+    actualizados: el pipeline no vuelve a buscarlos por título en Steam. Si un lote falla, sus juegos no se devuelven
+    y se buscan por título como siempre (respaldo). Se llama ANTES de iniciar el pipeline, con la conexión principal:
+    en ese momento es el único que escribe en la base (el Persistidor todavía no existe).
+    """
+    por_appid: dict[str, list[tuple[int, str]]] = {}
+    for producto_id, url, clave in conexion.execute(
+        "SELECT p.id, p.url, j.clave FROM producto_tienda p JOIN fuente f ON f.id = p.fuente_id "
+        "JOIN juego j ON j.id = p.juego_id WHERE f.codigo = ? AND p.estado_emparejamiento = 'aceptado' "
+        "AND j.activo = 1 ORDER BY p.id", (STEAM,)
+    ):
+        appid = steam_lote.appid_de(url)
+        if appid:
+            por_appid.setdefault(appid, []).append((producto_id, clave))
+    filas, actualizados = [], set()
+    for url in steam_lote.urls_por_lote(por_appid):
+        try:
+            respuesta = cliente.obtener(url)
+            precios = steam_lote.parsear_lote(respuesta.cuerpo)
+        except (ErrorRed, ValueError) as error:
+            print(f"Aviso: lote de Steam sin respuesta ({type(error).__name__}); esos juegos se buscan por título.",
+                  flush=True)
+            continue
+        obtenida = respuesta.obtenida_en.isoformat()
+        for appid, (actual, regular) in precios.items():
+            for producto_id, clave in por_appid.get(appid, ()):
+                filas.append((producto_id, ejecucion_id, obtenida, actual, regular))
+                actualizados.add(clave)
+    with conexion:
+        conexion.executemany(
+            "INSERT OR IGNORE INTO observacion_precio (producto_id, ejecucion_id, obtenida_en, "
+            "precio_actual_centavos, precio_regular_centavos) VALUES (?, ?, ?, ?, ?)", filas)
+    return frozenset(actualizados)
+
+
 def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: ClienteHttp,
                          indice: nintendo.IndiceNintendo, persistidor: Persistidor, ruta_bd: Path,
-                         destino_sitio: Path) -> DefinicionPipeline:
-    """Arma la ``DefinicionPipeline`` con las fuentes reales: QUÉ hace cada etapa."""
+                         destino_sitio: Path, steam_actualizados: frozenset[str] = frozenset()) -> DefinicionPipeline:
+    """Arma la ``DefinicionPipeline`` con las fuentes reales: QUÉ hace cada etapa.
+
+    :param steam_actualizados: claves de catálogo cuyo precio de Steam ya se actualizó por lote
+        (``precios_steam_por_lote``): no se vuelven a buscar por título en Steam.
+    """
 
     def paginas() -> list[tuple]:
         # Orden INTERCALADO (página 1 de cada plataforma, luego la 2...). Si se recorrieran primero todas las
@@ -185,6 +228,8 @@ def construir_definicion(config: Config, opciones: OpcionesEjecucion, cliente: C
         for fuente in FUENTES_POR_PLATAFORMA.get(juego.plataforma, ()):
             if opciones.solo_fuentes is not None and fuente not in opciones.solo_fuentes:
                 continue
+            if fuente == STEAM and juego.clave_catalogo in steam_actualizados:
+                continue  # Precio ya actualizado por lote antes del pipeline (ADR-013).
             if fuente == STEAM:
                 resultado.append((fuente, steam.url_busqueda(juego.titulo)))
             elif fuente == GOG:
@@ -303,8 +348,17 @@ def ejecutar(config: Config, opciones: OpcionesEjecucion) -> ResumenCorrida:
         else:
             ejecucion_id = _registrar_inicio(conexion, config, opciones)
 
+        # Steam por lote (ADR-013), solo EN VIVO: en replay los experimentos deben repetir siempre la misma carga
+        # de trabajo, y esto la haría depender de lo que ya hay en la base.
+        steam_actualizados: frozenset[str] = frozenset()
+        if (opciones.fuente_datos == "vivo" and config.ejecucion.steam_por_lote
+                and (opciones.solo_fuentes is None or STEAM in opciones.solo_fuentes)):
+            steam_actualizados = precios_steam_por_lote(conexion, cliente, ejecucion_id)
+            print(f"Steam por lote: {len(steam_actualizados)} juegos con precio actualizado.", flush=True)
+
         persistidor = Persistidor(ruta_bd, ejecucion_id, fuentes)
-        definicion = construir_definicion(config, opciones, cliente, indice, persistidor, ruta_bd, destino_sitio)
+        definicion = construir_definicion(config, opciones, cliente, indice, persistidor, ruta_bd, destino_sitio,
+                                          steam_actualizados)
         try:
             resultado = ejecutar_pipeline(definicion, opciones.modo, config.pipeline)
         finally:
@@ -323,7 +377,8 @@ def ejecutar(config: Config, opciones: OpcionesEjecucion) -> ResumenCorrida:
                 cliente.esperar_pausas()
             persistidor_final = Persistidor(ruta_bd, ejecucion_id, fuentes)
             reintento = replace(
-                construir_definicion(config, opciones, cliente, indice, persistidor_final, ruta_bd, destino_sitio),
+                construir_definicion(config, opciones, cliente, indice, persistidor_final, ruta_bd, destino_sitio,
+                                     steam_actualizados),
                 paginas=lambda: ["reintento-final"], descubrir_pagina=lambda _pagina: juegos_con_fallos,
             )
             try:

@@ -44,3 +44,4 @@ Hosting y tarea programada · Almacenamiento de capturas y BD.
 | [010](010-hosting-y-tarea-programada.md) | Hosting, tarea programada y almacenamiento de la base | Aceptada |
 | [011](011-cobertura-cheapshark-y-catalogo-pc-switch.md) | Más tiendas de PC (CheapShark) y catálogo enfocado en PC y Switch | Aceptada |
 | [012](012-conversion-a-colones-y-euros.md) | Mostrar precios en colones y euros (tipo de cambio diario) | Aceptada |
+| [013](013-precios-de-steam-por-lote.md) | Precios de Steam por lote (/api/appdetails) | Aceptada |

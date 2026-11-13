@@ -23,6 +23,11 @@ modo = "secuencial"
 #   "replay" -> se leen del almacén de capturas con latencia simulada (mediciones formales)
 fuente = "vivo"
 
+# Precios de Steam por lote (ADR-013): los juegos con producto de Steam ya emparejado actualizan su precio con
+# /api/appdetails, muchos por solicitud, en vez de una búsqueda por juego (Steam frenaba las búsquedas desde
+# GitHub Actions). Los juegos nuevos se siguen buscando por título. Solo en vivo: en replay no cambia nada.
+steam_precios_por_lote = true
+
 [pipeline]
 # Límites de concurrencia por etapa (sección 7 del enunciado). VALORES PROVISIONALES: los definitivos se
 # fijan y justifican en el ADR de límites de concurrencia. Diseño explicado en docs/pipeline.md.

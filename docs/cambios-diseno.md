@@ -12,3 +12,4 @@ Cambiar el diseño no se penaliza; no justificarlo, sí.
 | 2026-11-11 | Switch pasa de 8 a 12 páginas de descubrimiento | Con el arreglo anterior Switch tiene 2 tiendas reales | ADR-011 |
 | 2026-11-11 | Selector de moneda (USD, CRC, EUR) global y por juego; nueva fuente de tipo de cambio | Pedido del equipo; los datos siguen en USD | ADR-012 |
 | 2026-11-11 | Un 429 sin Retry-After pausa el dominio 15 min; marcas de formato de Best Buy neutras en el emparejamiento | CheapShark respondía 429 sin Retry-After; juegos de Switch rechazados por "NSW -"/"(LRG)" | ADR-011, ADR-006 |
+| 2026-11-13 | Paso previo al pipeline que actualiza por lote los precios de Steam ya emparejados (solo en vivo) | Steam frenaba la búsqueda por juego desde GitHub Actions | ADR-013 |
