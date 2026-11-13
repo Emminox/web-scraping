@@ -654,7 +654,8 @@ async function paginaDetalle() {
     const avisoRegional = regionales.length === 0 ? null : el("p", { class: "nota aviso-regional",
       text: `${new Intl.ListFormat("es", { type: "conjunction" }).format(regionales)} ${regionales.length === 1 ? "ajusta" : "ajustan"} `
         + "el precio según el país desde el que compras (precio regional, moneda e impuestos locales). Aquí se muestran "
-        + "los precios de la tienda de EE. UU.: al abrir el enlace desde Costa Rica u otro país, el precio puede ser distinto." });
+        + "los precios de la tienda de Estados Unidos, así que al abrir el enlace desde Costa Rica u otro país el precio "
+        + "puede ser distinto." });
 
     const precios = tabla(["Tienda", "Plataforma", "Formato", "Precio", "Regular", "Obtenido"],
       juego.precios.map((p) => [
